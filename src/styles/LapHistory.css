@@ -1,0 +1,75 @@
+.lap-history-container {
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 1rem;
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+}
+
+.history-header {
+    margin-bottom: 12px;
+}
+
+.history-label {
+    font-size: 0.6rem;
+    font-weight: 800;
+    color: var(--text-secondary);
+    letter-spacing: 0.2em;
+}
+
+.history-scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(59, 130, 246, 0.3) transparent;
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.history-table th {
+    text-align: left;
+    font-size: 0.55rem;
+    font-weight: 800;
+    color: var(--text-secondary);
+    padding: 4px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.history-table td {
+    padding: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.td-lap-num {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.td-lap-time {
+    color: #fff;
+    text-align: right;
+}
+
+.td-lap-status {
+    text-align: right;
+}
+
+.status-badge {
+    font-size: 0.5rem;
+    font-weight: 800;
+    padding: 2px 4px;
+    border-radius: 2px;
+}
+
+.status-badge.valid {
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
