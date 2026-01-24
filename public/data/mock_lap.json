@@ -1,0 +1,136 @@
+{
+    "race_name": "Mock Monaco Grand Prix",
+    "track_length": 3337,
+    "telemetry": [
+        {
+            "t": 0,
+            "dist": 0.0,
+            "speed": 0,
+            "gear": 1,
+            "throttle": 0,
+            "brake": 0,
+            "x": 500,
+            "y": 100
+        },
+        {
+            "t": 1000,
+            "dist": 0.05,
+            "speed": 120,
+            "gear": 3,
+            "throttle": 100,
+            "brake": 0,
+            "x": 550,
+            "y": 120
+        },
+        {
+            "t": 2000,
+            "dist": 0.12,
+            "speed": 180,
+            "gear": 4,
+            "throttle": 100,
+            "brake": 0,
+            "x": 600,
+            "y": 150
+        },
+        {
+            "t": 3000,
+            "dist": 0.20,
+            "speed": 220,
+            "gear": 5,
+            "throttle": 100,
+            "brake": 0,
+            "x": 650,
+            "y": 200
+        },
+        {
+            "t": 4000,
+            "dist": 0.28,
+            "speed": 240,
+            "gear": 6,
+            "throttle": 80,
+            "brake": 0,
+            "x": 700,
+            "y": 300
+        },
+        {
+            "t": 5000,
+            "dist": 0.35,
+            "speed": 180,
+            "gear": 4,
+            "throttle": 0,
+            "brake": 50,
+            "x": 720,
+            "y": 400
+        },
+        {
+            "t": 6000,
+            "dist": 0.42,
+            "speed": 90,
+            "gear": 2,
+            "throttle": 10,
+            "brake": 0,
+            "x": 700,
+            "y": 500
+        },
+        {
+            "t": 7000,
+            "dist": 0.50,
+            "speed": 110,
+            "gear": 3,
+            "throttle": 60,
+            "brake": 0,
+            "x": 600,
+            "y": 550
+        },
+        {
+            "t": 8000,
+            "dist": 0.60,
+            "speed": 190,
+            "gear": 4,
+            "throttle": 100,
+            "brake": 0,
+            "x": 500,
+            "y": 520
+        },
+        {
+            "t": 9000,
+            "dist": 0.70,
+            "speed": 250,
+            "gear": 6,
+            "throttle": 100,
+            "brake": 0,
+            "x": 400,
+            "y": 450
+        },
+        {
+            "t": 10000,
+            "dist": 0.82,
+            "speed": 280,
+            "gear": 7,
+            "throttle": 100,
+            "brake": 0,
+            "x": 350,
+            "y": 350
+        },
+        {
+            "t": 11000,
+            "dist": 0.92,
+            "speed": 220,
+            "gear": 5,
+            "throttle": 0,
+            "brake": 40,
+            "x": 400,
+            "y": 200
+        },
+        {
+            "t": 12000,
+            "dist": 1.0,
+            "speed": 150,
+            "gear": 3,
+            "throttle": 40,
+            "brake": 0,
+            "x": 500,
+            "y": 100
+        }
+    ]
+}
