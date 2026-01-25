@@ -1,59 +1,69 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Group } from '@visx/group';
 import { Arc } from '@visx/shape';
 import { scaleLinear } from '@visx/scale';
 import { useRaceStore } from '../store/useRaceStore';
+import { getInterpolatedFrame } from '../utils/interpolation';
 
 interface VehicleStatusProps {
     size: number;
 }
 
 export const VehicleStatus: React.FC<VehicleStatusProps> = ({ size }) => {
+    const raceData = useRaceStore(state => state.raceData);
+    const focusedDriver = useRaceStore(state => state.focusedDriver);
     const currentTime = useRaceStore(state => state.currentTime);
+    const totalLaps = useRaceStore(state => state.totalLaps);
 
-    // --- FUEL LOGIC (Mocked) ---
-    // Sim: Start 100kg, burn 1.5kg per minute
-    const maxFuel = 100;
-    const estimatedFuel = Math.max(5, maxFuel - (currentTime / 60) * 1.5);
+    // Get Current Telemetry
+    const currentFrame = useMemo(() => {
+        if (!raceData || !focusedDriver) return null;
+        const driver = raceData.drivers.find(d => d.driver_abbr === focusedDriver);
+        if (!driver) return null;
+        return getInterpolatedFrame(driver.telemetry, currentTime);
+    }, [raceData, focusedDriver, currentTime]);
+
+    // --- FUEL LOGIC (Simulated) ---
+    // Start with 110kg. Burn linear to 0 at totalLaps.
+    // Enhanced: Use lap + progress (dist) if possible, but lap is sufficient for mock.
+    const maxFuel = 110;
+    const currentLap = currentFrame?.lap || 1;
+    // Avoid division by zero
+    const progress = totalLaps > 0 ? (currentLap / totalLaps) : 0;
+    const estimatedFuel = Math.max(0, maxFuel * (1 - progress));
     const fuelPercentage = (estimatedFuel / maxFuel) * 100;
 
-    // --- TYRE LOGIC (Mocked) ---
-    const tyres = [
-        { pos: 'FL', temp: 98 },
-        { pos: 'FR', temp: 102 },
-        { pos: 'RL', temp: 105 },
-        { pos: 'RR', temp: 104 }
-    ];
+    // --- TYRE LOGIC (Real) ---
+    const compound = currentFrame?.compound || 'UNKNOWN';
+    const tyreAge = currentFrame?.tyre_age || 0;
 
-    const getTempColor = (t: number) => {
-        if (t < 80) return '#3b82f6'; // Cold
-        if (t < 100) return '#22c55e'; // Optimal
-        if (t < 110) return '#eab308'; // Warm
-        return '#ef4444'; // Hot
+    // Compound Colors
+    const getCompoundColor = (c: string) => {
+        const up = c.toUpperCase();
+        if (up.includes('SOFT')) return '#ef4444'; // Red
+        if (up.includes('MEDIUM')) return '#eab308'; // Yellow
+        if (up.includes('HARD')) return '#f8fafc'; // White
+        if (up.includes('INTER')) return '#22c55e'; // Green
+        if (up.includes('WET')) return '#3b82f6'; // Blue
+        return '#64748b'; // Slate
     };
+    const compoundColor = getCompoundColor(compound);
 
     // Dimensions
     const radius = size / 2;
-    const strokeWidth = 8;
+    const strokeWidth = 6;
     const innerRadius = radius - strokeWidth;
 
-    // Fuel Scale (Arc)
-    // 0 is Top. Let's do a 300 degree arc (-150 to +150) or full circle?
-    // Let's do a full ring for style, or maybe start from bottom?
-    // Let's match speedometer 'gap' style possibly? Or just full ring.
-    // Speedometer is -135 to +135. Let's match that arc for consistency?
-    // Actually user said "meter gauge".
-    // Let's do a circular bar.
+    // Scale for Fuel Ring
     const fuelScale = scaleLinear({
         domain: [0, 100],
-        range: [0, Math.PI * 2], // Full circle
+        range: [0, Math.PI * 2],
     });
 
     return (
         <svg width={size} height={size} style={{ overflow: 'visible' }}>
             <Group top={radius} left={radius}>
                 {/* --- OUTER RING: FUEL --- */}
-                {/* Background Track */}
                 <Arc
                     innerRadius={innerRadius}
                     outerRadius={radius}
@@ -63,17 +73,17 @@ export const VehicleStatus: React.FC<VehicleStatusProps> = ({ size }) => {
                     opacity={0.3}
                     cornerRadius={2}
                 />
-
-                {/* Fuel Level */}
                 <Arc
                     innerRadius={innerRadius}
                     outerRadius={radius}
                     startAngle={0}
                     endAngle={fuelScale(fuelPercentage)}
-                    fill={fuelPercentage < 20 ? "#ef4444" : "#22c55e"}
+                    fill={fuelPercentage < 10 ? "#ef4444" : "#22c55e"} // Red if low fuel
                     cornerRadius={2}
                     opacity={0.8}
                 />
+
+                {/* Fuel Labels */}
                 <text
                     y={-radius - 8}
                     textAnchor="middle"
@@ -88,46 +98,43 @@ export const VehicleStatus: React.FC<VehicleStatusProps> = ({ size }) => {
                     y={radius + 15}
                     textAnchor="middle"
                     fill="#f8fafc"
-                    fontSize={10}
+                    fontSize={12}
                     fontWeight={700}
                     fontFamily="JetBrains Mono"
                 >
-                    {estimatedFuel.toFixed(1)}KG
+                    {estimatedFuel.toFixed(1)}kg
                 </text>
 
-                {/* --- INNER GRID: TYRES --- */}
-                {/* Centered Grid */}
-                <Group top={-15} left={-15}>
-                    <foreignObject width={30} height={30} x={0} y={0} style={{ overflow: 'visible' }}>
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '1fr 1fr',
-                            gap: '4px',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            width: '30px'
-                        }}>
-                            {tyres.map((t) => (
-                                <div key={t.pos} style={{
-                                    width: '12px',
-                                    height: '16px',
-                                    borderRadius: '3px',
-                                    border: `1.5px solid ${getTempColor(t.temp)}`,
-                                    background: 'rgba(15, 23, 42, 0.5)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                }}>
-                                    <span style={{ fontSize: '5px', color: '#fff', fontWeight: 800 }}>{t.pos[1]}</span>
-                                    {/* Showing just L/R or F/R letter for tiny icon? Or nothing? */}
-                                </div>
-                            ))}
-                        </div>
-                    </foreignObject>
-                </Group>
 
-                {/* Label for Tyres center */}
-                {/* Maybe too crowded. Let's just keep the colored boxes. */}
+                {/* --- CENTER: TYRE INFO --- */}
+                {/* Big Tyre Icon/Circle */}
+                <circle r={radius * 0.55} fill="transparent" stroke={compoundColor} strokeWidth={3} opacity={0.8} />
+
+                {/* Compound Letter */}
+                <text
+                    y={-5}
+                    textAnchor="middle"
+                    alignmentBaseline="middle"
+                    fill={compoundColor}
+                    fontSize={24}
+                    fontWeight={900}
+                    fontFamily="Outfit"
+                    style={{ filter: `drop-shadow(0 0 8px ${compoundColor}40)` }}
+                >
+                    {compound.charAt(0).toUpperCase()}
+                </text>
+
+                {/* Tyre Age */}
+                <text
+                    y={18}
+                    textAnchor="middle"
+                    fill="#94a3b8"
+                    fontSize={10}
+                    fontWeight={600}
+                    fontFamily="JetBrains Mono"
+                >
+                    {tyreAge} LAPS
+                </text>
 
             </Group>
         </svg>

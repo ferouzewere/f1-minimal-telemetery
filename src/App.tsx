@@ -15,6 +15,7 @@ import { Compass } from './components/Compass'
 import { VehicleStatus } from './components/VehicleStatus'
 
 import { useRaceStore, type DriverData } from './store/useRaceStore'
+import './styles/Copyright.css'
 import './App.css'
 
 function App() {
@@ -182,6 +183,11 @@ function App() {
         {/* Bottom Center: Minimal Controls Pill */}
         <div className="hud-panel hud-bottom-center">
           <PlaybackControls />
+        </div>
+
+        {/* Copyright Footer */}
+        <div className="copyright-footer">
+          DEVELOPED BY FEROUZE
         </div>
 
       </div>

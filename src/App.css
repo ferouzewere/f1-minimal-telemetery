@@ -88,7 +88,9 @@ body {
   right: 1.5rem;
   bottom: 30%;
   /* Leave space for speedometer */
-  width: 420px;
+  width: 540px;
+  /* Increased from 420px to fit all columns */
+  max-width: 40vw;
   display: flex;
   flex-direction: column;
 }
