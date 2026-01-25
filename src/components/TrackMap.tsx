@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Group } from '@visx/group';
 import { LinePath } from '@visx/shape';
 import { curveCardinal } from '@visx/curve';
+import { motion } from 'framer-motion';
 import { useRaceStore } from '../store/useRaceStore';
 import { getInterpolatedFrame } from '../utils/interpolation';
 import { getSector } from '../utils/constants';
@@ -254,11 +255,11 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height }) => {
     if (!raceData || trackPoints.length === 0) return null;
 
     return (
-        <svg
+        <motion.svg
             width={width}
             height={height}
-            viewBox={`${vbX} ${vbY} ${vbWidth} ${vbHeight}`}
-            style={{ transition: 'viewBox 0.5s cubic-bezier(0.4, 0, 0.2, 1)' }}
+            animate={{ viewBox: `${vbX} ${vbY} ${vbWidth} ${vbHeight}` }}
+            transition={{ type: 'spring', stiffness: 50, damping: 20 }}
         >
             <defs>
                 <filter id="carGlow" x="-50%" y="-50%" width="200%" height="200%">
@@ -419,6 +420,6 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height }) => {
                     );
                 })}
             </Group>
-        </svg>
+        </motion.svg>
     );
 };
