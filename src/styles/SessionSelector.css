@@ -116,7 +116,28 @@
     flex-direction: column;
     gap: 1.25rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
 }
+
+.circuit-outline-icon {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    width: 60px;
+    height: 60px;
+    opacity: 0.15;
+    pointer-events: none;
+    transition: all 0.5s ease;
+    color: white;
+}
+
+.circuit-card:hover .circuit-outline-icon {
+    opacity: 0.3;
+    transform: scale(1.1);
+    color: var(--accent);
+}
+
 
 .circuit-card:hover {
     border-color: rgba(59, 130, 246, 0.4);

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRaceStore } from '../store/useRaceStore';
 import type { CircuitMetadata } from '../store/useRaceStore';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CircuitOutline } from './CircuitOutline';
 import '../styles/SessionSelector.css';
 
 interface Session {
@@ -117,6 +118,8 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({ isOpen, setIsO
                                                     <h3>{circuit.name}</h3>
                                                     <span className="location">{circuit.location}</span>
                                                 </div>
+
+                                                <CircuitOutline circuitId={circuit.id} className="circuit-outline-icon" />
 
                                                 <div className="card-stats">
                                                     <div className="stat">

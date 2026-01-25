@@ -29,7 +29,10 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
 
     // Minimum visual thresholds for visibility
     const vizThrottle = throttle > 1 ? Math.max(throttle, 5) : throttle;
-    const vizBrake = brake > 1 ? Math.max(brake, 5) : brake;
+    // Handle brake data that might be 0-1 (boolean/normalized) vs 0-100
+    // If brake is <= 1, assume it's normalized and scale to 100
+    const normalizedBrake = brake <= 1 ? brake * 100 : brake;
+    const vizBrake = normalizedBrake > 1 ? Math.max(normalizedBrake, 5) : normalizedBrake;
 
     // Gear Mapping
     const GEARS = ['R', 'N', '1', '2', '3', '4', '5', '6', '7', '8'];
@@ -144,6 +147,51 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
         return tickData;
     }, [radius, speedScale]);
 
+    // --- BRAKE DURATION LOGIC ---
+    const brakeDuration = useMemo(() => {
+        // If not braking, duration is 0
+        if (vizBrake <= 0 || !raceData?.drivers) return 0;
+
+        const driver = raceData.drivers.find(d => d.driver_abbr === focusedDriver);
+        if (!driver || !driver.telemetry || driver.telemetry.length === 0) return 0;
+
+        // 1. Find current index (Binary Search)
+        let low = 0;
+        let high = driver.telemetry.length - 2;
+        let index = -1;
+
+        while (low <= high) {
+            const mid = Math.floor((low + high) / 2);
+            if (driver.telemetry[mid].t <= currentTime) {
+                index = mid;
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
+        }
+
+        if (index === -1) return 0;
+
+        // 2. Look backwards to find start of braking
+        let startTime = driver.telemetry[index].t;
+        let limit = 100; // safety break
+
+        for (let i = index; i >= 0 && limit > 0; i--) {
+            // Check raw telemetry brake value
+            if (driver.telemetry[i].brake <= 0) {
+                break;
+            }
+            startTime = driver.telemetry[i].t;
+            limit--;
+        }
+
+        return currentTime - startTime;
+    }, [raceData, focusedDriver, currentTime, vizBrake]);
+
+    const brakeColor = brakeDuration < 300 ? '#f97316' : '#ef4444';
+
+
+
     return (
         <svg width={width} height={height} style={{ overflow: 'visible' }}>
             <defs>
@@ -165,8 +213,8 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                     <stop offset="100%" stopColor="#22c55e" stopOpacity={1} />
                 </linearGradient>
                 <linearGradient id="brakeGrad" x1="0" y1="1" x2="0" y2="0">
-                    <stop offset="0%" stopColor="#ef4444" stopOpacity={0.8} />
-                    <stop offset="100%" stopColor="#ef4444" stopOpacity={1} />
+                    <stop offset="0%" stopColor={brakeColor} stopOpacity={0.8} />
+                    <stop offset="100%" stopColor={brakeColor} stopOpacity={1} />
                 </linearGradient>
             </defs>
 
@@ -340,16 +388,16 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                 <Arc
                     innerRadius={telemetryInner}
                     outerRadius={telemetryOuter}
-                    startAngle={Math.PI * 0.75}
-                    endAngle={0}
+                    startAngle={0}
+                    endAngle={Math.PI * 0.75}
                     fill="#1e293b" opacity={0.3}
                     cornerRadius={4}
                 />
                 <Arc
                     innerRadius={telemetryInner}
                     outerRadius={telemetryOuter}
-                    startAngle={Math.PI * 0.75}
-                    endAngle={Math.PI * 0.75 - (Math.PI * 0.75 * (vizBrake / 100))}
+                    startAngle={Math.PI * 0.75 - (Math.PI * 0.75 * (vizBrake / 100))}
+                    endAngle={Math.PI * 0.75}
                     fill="url(#brakeGrad)"
                     cornerRadius={4}
                 />
