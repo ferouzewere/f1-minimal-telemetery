@@ -40,32 +40,33 @@ export const GlobalMultiGraph: React.FC<GlobalMultiGraphProps> = memo(({ width, 
             // Current lap for trail filtering
             const currentLap = frame.lap;
 
-            const dist = frame.dist % trackLength;
+            const safeTrackLength = trackLength > 0 ? trackLength : 1;
+            const dist = (frame.dist % safeTrackLength) || 0;
             if (dist > currentMaxDist) currentMaxDist = dist;
 
             // Filter points for the TRAIL (current driver, current lap, up to current time)
             let trail = driver.telemetry.filter(t =>
                 t.lap === currentLap && t.t <= currentTime
             ).map(t => ({
-                dist: t.dist % trackLength,
-                speed: t.speed
-            }));
+                dist: t.dist % safeTrackLength,
+                speed: t.speed || 0
+            })).filter(t => !isNaN(t.dist) && !isNaN(t.speed));
 
             // Strict sorting and filtering to prevent "lines ahead of dot"
             trail.sort((a, b) => a.dist - b.dist);
             trail = trail.filter(t => t.dist < dist); // Strictly less than current
 
             // Ensure the trail connects to current interpolated point
-            trail.push({ dist, speed: frame.speed });
+            trail.push({ dist, speed: frame.speed || 0 });
 
             return {
                 abbr: driver.driver_abbr,
                 dist,
-                speed: frame.speed,
+                speed: frame.speed || 0,
                 color: TEAM_COLORS[driver.team] || '#ffffff',
                 trail
             };
-        });
+        }).filter(d => !isNaN(d.dist) && !isNaN(d.speed));
 
         return { driverData: data, maxDist: currentMaxDist };
     }, [raceData, currentTime, trackLength]);
@@ -78,10 +79,13 @@ export const GlobalMultiGraph: React.FC<GlobalMultiGraphProps> = memo(({ width, 
     const graphWidth = Math.max(0, width - PADDING_X);
     const graphHeight = Math.max(0, height - PADDING_Y - HEADER_HEIGHT);
 
-    const xScale = useMemo(() => scaleLinear({
-        domain: [0, Math.max(maxDist, 200)],
-        range: [60, graphWidth - 20],
-    }), [graphWidth, maxDist]);
+    const xScale = useMemo(() => {
+        const domainMax = isNaN(maxDist) || !isFinite(maxDist) ? 200 : Math.max(maxDist, 200);
+        return scaleLinear({
+            domain: [0, domainMax],
+            range: [60, graphWidth - 20],
+        });
+    }, [graphWidth, maxDist]);
 
     const yScale = useMemo(() => scaleLinear({
         domain: [0, 360],
@@ -120,11 +124,7 @@ export const GlobalMultiGraph: React.FC<GlobalMultiGraphProps> = memo(({ width, 
 
     return (
         <div className="global-multi-graph">
-            <div className="graph-header">
-                <span className="graph-label" style={{ color: '#fff', textShadow: '0 0 10px rgba(255,255,255,0.5)' }}>
-                    FIELD TELEMETRY • <span style={{ color: '#aaa' }}>LIVE</span>
-                </span>
-            </div>
+
 
             <svg width={graphWidth} height={graphHeight} style={{ overflow: 'visible' }}>
                 <defs>
@@ -170,33 +170,50 @@ export const GlobalMultiGraph: React.FC<GlobalMultiGraphProps> = memo(({ width, 
                         />
                     ))}
 
-                    {/* Render Dots with Glow */}
+                    {/* Render Dots with Glow and Pulse */}
                     {driverData.map((d) => (
                         <Group key={d.abbr}>
+                            {/* Inner Pulsing Aura */}
                             <Circle
                                 cx={xScale(d.dist)}
                                 cy={yScale(d.speed)}
                                 r={5}
                                 fill={d.color}
                                 filter="url(#glow)"
-                            />
+                            >
+                                <animate
+                                    attributeName="r"
+                                    values="4;7;4"
+                                    dur="1.5s"
+                                    repeatCount="indefinite"
+                                />
+                                <animate
+                                    attributeName="opacity"
+                                    values="0.6;1;0.6"
+                                    dur="1.5s"
+                                    repeatCount="indefinite"
+                                />
+                            </Circle>
+                            {/* Core Dot */}
                             <circle
                                 cx={xScale(d.dist)}
                                 cy={yScale(d.speed)}
-                                r={2}
+                                r={3}
                                 fill="#fff"
+                                style={{ filter: 'drop-shadow(0 0 2px #fff)' }}
                             />
+                            {/* Driver ID Label */}
                             <text
                                 x={xScale(d.dist)}
-                                y={yScale(d.speed) - 15}
+                                y={yScale(d.speed) - 18}
                                 textAnchor="middle"
                                 fill="#ffffff"
-                                fontSize={10}
-                                fontWeight={700}
-                                fontFamily="monospace"
+                                fontSize={11}
+                                fontWeight={900}
+                                fontFamily="Outfit, sans-serif"
                                 style={{
                                     pointerEvents: 'none',
-                                    textShadow: `0 0 5px ${d.color}`
+                                    textShadow: `0 0 8px ${d.color}, 0 0 2px #000`
                                 }}
                             >
                                 {d.abbr}
@@ -205,6 +222,11 @@ export const GlobalMultiGraph: React.FC<GlobalMultiGraphProps> = memo(({ width, 
                     ))}
                 </Group>
             </svg>
+
+            {/* Shared Minimal Labels */}
+            <div style={{ position: 'absolute', top: 5, left: 10, fontSize: 10, fontWeight: 900, color: '#3b82f6', letterSpacing: '0.1em' }}>
+                LIVE PULSE • SPEED/DIST
+            </div>
         </div>
     );
 });

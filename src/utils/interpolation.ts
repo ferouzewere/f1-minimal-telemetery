@@ -18,6 +18,7 @@ export const interpolateFrames = (
     if (currentTime <= f0.t) return f0;
     if (currentTime >= f1.t) return f1;
 
+    if (f1.t === f0.t) return f0;
     const t = (currentTime - f0.t) / (f1.t - f0.t);
 
     return {

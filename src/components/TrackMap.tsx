@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo } from 'react';
 import { Group } from '@visx/group';
 import { LinePath } from '@visx/shape';
 import { curveCardinal } from '@visx/curve';
@@ -37,12 +37,14 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height }) => {
     // Define track points with sector info (Static per session)
     const trackPoints = useMemo(() => {
         if (!raceData || !raceData.drivers[0]) return [];
-        return raceData.drivers[0].telemetry.map(f => ({
-            x: f.x,
-            y: f.y,
-            dist: f.dist,
-            sector: getSector(f.dist, circuitMetadata)
-        }));
+        return raceData.drivers[0].telemetry
+            .filter(f => !isNaN(f.x) && !isNaN(f.y))
+            .map(f => ({
+                x: f.x,
+                y: f.y,
+                dist: f.dist,
+                sector: getSector(f.dist, circuitMetadata)
+            }));
     }, [raceData, circuitMetadata]);
 
     // Segment track points for visual distinction (Static per session)
@@ -76,7 +78,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height }) => {
                 isPit: frame.is_pit,
                 color: TEAM_COLORS[driver.team] || DEFAULT_COLORS[idx % DEFAULT_COLORS.length]
             };
-        });
+        }).filter(pos => !isNaN(pos.x) && !isNaN(pos.y));
     }, [raceData, currentTime]);
 
     const trackBounds = useMemo(() => {
@@ -110,8 +112,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height }) => {
     const vbX = viewport.x - vbWidth / 2;
     const vbY = viewport.y - vbHeight / 2;
 
-    // Keep track of cumulative rotation to avoid 360->0 jumps
-    const lastBearingRef = useRef(0);
+
 
     const TacticalUnderlay = useMemo(() => {
         // Use VIEWPORT bounds instead of track bounds for the background
@@ -121,8 +122,8 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height }) => {
         const y = vbY;
 
         const { minX, maxX, minY, maxY } = trackBounds;
-        const trackW = maxX - minX;
-        const trackH = maxY - minY;
+        const trackW = isFinite(maxX - minX) ? (maxX - minX) : 0;
+        const trackH = isFinite(maxY - minY) ? (maxY - minY) : 0;
 
         // PROCEDURAL GENERATION: Create "Track Furniture" along the spline
         const trackFeatures: any[] = [];
@@ -140,6 +141,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height }) => {
                 const dx = p2.x - p1.x;
                 const dy = p2.y - p1.y;
                 const len = Math.sqrt(dx * dx + dy * dy);
+                if (len === 0) continue;
 
                 // Normalized normal vector (perpendicular)
                 // Rotate 90 degrees: (x, y) -> (-y, x)
@@ -247,88 +249,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height }) => {
         );
     }, [trackBounds, vbX, vbY, vbWidth, vbHeight, trackPoints]); // Added trackPoints dependency
 
-    const TacticalCompass = useMemo(() => {
-        // Positioned top-right relative to viewport
-        const size = 60 / viewport.zoom;
-        const padding = 80 / viewport.zoom;
 
-        const compassX = vbX + vbWidth - padding;
-        const compassY = vbY + padding;
-
-        // Calculate current bearing/heading
-        let targetBearing = 0; // Default North
-        let bearingSource = 'TRACK';
-
-        if (raceData && focusedDriver) {
-            // Get focused driver's current and next position to calculate heading
-            const driver = raceData.drivers.find(d => d.driver_abbr === focusedDriver);
-            if (driver) {
-                const currentFrame = getInterpolatedFrame(driver.telemetry, currentTime);
-                const nextFrame = getInterpolatedFrame(driver.telemetry, currentTime + 0.1);
-
-                const dx = nextFrame.x - currentFrame.x;
-                const dy = nextFrame.y - currentFrame.y;
-
-                // Calculate bearing (0° = North, 90° = East)
-                targetBearing = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
-                bearingSource = focusedDriver;
-            }
-        }
-
-        // Calculate shortest rotation path to target
-        const current = lastBearingRef.current;
-        const normalizedCurrent = (current % 360 + 360) % 360;
-        let delta = targetBearing - normalizedCurrent;
-
-        // Take the shortest path
-        if (delta > 180) delta -= 360;
-        if (delta < -180) delta += 360;
-
-        lastBearingRef.current += delta;
-        const smoothedBearing = lastBearingRef.current;
-        const displayBearing = (Math.round(targetBearing) % 360 + 360) % 360;
-
-        return (
-            <Group top={compassY} left={compassX} style={{ pointerEvents: 'none' }}>
-                <circle r={size} fill="rgba(15, 23, 42, 0.6)" stroke="#0ea5e9" strokeWidth={1} strokeOpacity={0.3} />
-                <circle r={size * 0.8} fill="none" stroke="#64748b" strokeWidth={0.5} strokeOpacity={0.2} strokeDasharray="2,2" />
-
-                {/* Rotating compass rose with smooth transition */}
-                <Group
-                    style={{
-                        transform: `rotate(${-smoothedBearing}deg)`,
-                        transformOrigin: '0px 0px',
-                        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-                    }}
-                >
-                    {/* North Indicator (Red) */}
-                    <path d={`M 0 -${size * 0.7} L 4 0 L -4 0 Z`} fill="#ef4444" opacity={0.9} />
-                    <text y={-size - 10} textAnchor="middle" fontSize={10} fill="#ffffff" fontWeight={800} style={{ fontFamily: 'JetBrains Mono' }}>N</text>
-
-                    {/* South Indicator (White) */}
-                    <path d={`M 0 ${size * 0.7} L 4 0 L -4 0 Z`} fill="#ffffff" opacity={0.4} />
-
-                    {/* Tactical markers */}
-                    {Array.from({ length: 8 }).map((_, i) => (
-                        <line
-                            key={i}
-                            y1={-size * 0.85} y2={-size * 0.7}
-                            transform={`rotate(${i * 45})`}
-                            stroke="#0ea5e9" strokeWidth={1} strokeOpacity={0.5}
-                        />
-                    ))}
-                </Group>
-
-                {/* Bearing display (fixed orientation) */}
-                <text y={size + 15} textAnchor="middle" fontSize={9} fill="#0ea5e9" fontWeight={700} style={{ fontFamily: 'JetBrains Mono' }}>
-                    {displayBearing.toString().padStart(3, '0')}°
-                </text>
-                <text y={size + 27} textAnchor="middle" fontSize={7} fill="#64748b" fontWeight={600} style={{ fontFamily: 'JetBrains Mono' }}>
-                    {bearingSource}
-                </text>
-            </Group>
-        );
-    }, [vbX, vbY, vbHeight, viewport.zoom, raceData, focusedDriver, currentTime]);
 
     if (!raceData || trackPoints.length === 0) return null;
 
@@ -373,7 +294,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height }) => {
                     {TacticalUnderlay}
                 </Group>
 
-                {TacticalCompass}
+
 
                 {/* Static Track Layer */}
                 {segments.map((seg, i) => (

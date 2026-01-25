@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import { useRaceStore } from '../store/useRaceStore';
 import { getInterpolatedFrame } from '../utils/interpolation';
 import { getSector } from '../utils/constants';
+import '../styles/DriverTable.css';
+
 
 export const DriverTable: React.FC = () => {
     const { raceData, currentTime, focusedDriver, comparisonDriver, circuitMetadata, setFocusedDriver } = useRaceStore();

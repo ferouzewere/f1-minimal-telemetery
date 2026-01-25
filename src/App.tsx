@@ -1,14 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { ParentSize } from '@visx/responsive'
+
 import { TrackMap } from './components/TrackMap'
 import { Speedometer } from './components/Speedometer'
 import { DriverTable } from './components/DriverTable'
+
+import { SpeedDistanceGraph } from './components/SpeedDistanceGraph'
 import { GlobalMultiGraph } from './components/GlobalMultiGraph'
-import { TelemetryHUD } from './components/TelemetryHUD'
+
 import { PlaybackControls } from './components/PlaybackControls'
-import { useRaceStore, type DriverData } from './store/useRaceStore'
 import { SessionSelector } from './components/SessionSelector'
-import { ParentSize } from '@visx/responsive'
+import { Compass } from './components/Compass'
+import { VehicleStatus } from './components/VehicleStatus'
+
+import { useRaceStore, type DriverData } from './store/useRaceStore'
 import './App.css'
 
 function App() {
@@ -84,61 +90,70 @@ function App() {
   const hasFocus = !!focusedDriver;
 
   return (
-    <div className="app-container">
-      <header className={`app-header-hub ${isNavOpen ? 'nav-expanded' : ''}`}>
-        <div className="nav-command-center" onClick={() => setIsNavOpen(!isNavOpen)}>
-          <div className="hub-identity">
-            <h1>{raceData?.race_name || 'F1 MONITOR'}</h1>
-            <span className="subtitle">
-              {circuitMetadata?.name || 'TRACK MONITOR'}
-            </span>
-          </div>
-          <motion.div
-            className="hub-indicator"
-            animate={{ rotate: isNavOpen ? 180 : 0 }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
-          </motion.div>
-        </div>
-        <div className="hub-status-bar">
-          <div className={`status-dot ${isPlaying ? 'active' : ''}`} />
-          <span className="status-text">{isPlaying ? 'LIVE' : 'PAUSED'}</span>
-        </div>
-      </header>
+    <div className="cockpit-view">
+      {/* LAYER 0: Full Screen Ambient Map */}
+      <div className="track-background-layer">
+        <ParentSize>
+          {({ width, height }) => <TrackMap width={width} height={height} />}
+        </ParentSize>
+      </div>
 
-      <SessionSelector isOpen={isNavOpen} setIsOpen={setIsNavOpen} />
+      {/* LAYER 1: HUD Grid Overlay */}
+      <div className="hud-overlay-layer">
 
-      <main className="app-main">
-        <div className="track-section">
-          <div className="viz-card track-card">
-            <ParentSize>
-              {({ width, height }) => <TrackMap width={width} height={height} />}
-            </ParentSize>
+        {/* Top Left: Mission Control Header */}
+        <header className="hud-panel hud-top-left">
+          <div className="hub-capsule" onClick={() => setIsNavOpen(!isNavOpen)}>
+            <div className="hub-title">
+              <h1>{raceData?.race_name || 'F1 MONITOR'}</h1>
+              <span>{circuitMetadata?.name || 'TRACK MONITOR'}</span>
+            </div>
+
+            <motion.div
+              animate={{ rotate: isNavOpen ? 180 : 0 }}
+              style={{ color: '#64748b' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </motion.div>
           </div>
 
-          <div className="unified-intelligence-panel">
+          <SessionSelector isOpen={isNavOpen} setIsOpen={setIsNavOpen} />
+        </header>
+
+        {/* Top Right: Leaderboard */}
+        <aside className="hud-panel hud-top-right">
+          <div className="driver-table-container">
+            <DriverTable />
+          </div>
+        </aside>
+
+        {/* Middle Left: Pulse Chart Only */}
+        <div className="hud-panel hud-bottom-left">
+          <div className="telemetry-hud-container">
             <AnimatePresence mode="wait">
               {hasFocus ? (
                 <motion.div
                   key="focus"
                   className="focus-intelligence-view"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 1.05 }}
-                  transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
                 >
-                  <TelemetryHUD />
+                  <ParentSize>
+                    {({ width, height }) => <SpeedDistanceGraph width={width} height={height} />}
+                  </ParentSize>
                 </motion.div>
               ) : (
                 <motion.div
                   key="global"
                   className="global-intelligence-view"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 1.05 }}
-                  transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
                 >
                   <ParentSize>
                     {({ width, height }) => <GlobalMultiGraph width={width} height={height} />}
@@ -149,17 +164,28 @@ function App() {
           </div>
         </div>
 
-        <aside className="side-panel">
-          <DriverTable />
-
-          <div className="viz-card speed-card">
-            <Speedometer width={250} height={250} />
+        {/* Bottom Right: Speed Cluster */}
+        <div className="hud-panel hud-bottom-right">
+          <div className={`speed-cluster ${!hasFocus ? 'inactive' : ''}`}>
+            <div className="cluster-side left">
+              <Compass size={108} />
+            </div>
+            <div className="cluster-center">
+              <Speedometer width={280} height={280} />
+            </div>
+            <div className="cluster-side right">
+              <VehicleStatus size={108} />
+            </div>
           </div>
+        </div>
 
+        {/* Bottom Center: Minimal Controls Pill */}
+        <div className="hud-panel hud-bottom-center">
           <PlaybackControls />
-        </aside>
-      </main>
-    </div >
+        </div>
+
+      </div>
+    </div>
   )
 }
 
