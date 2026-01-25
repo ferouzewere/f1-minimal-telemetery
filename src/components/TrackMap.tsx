@@ -1,4 +1,4 @@
-import React, { useMemo, memo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { Group } from '@visx/group';
 import { LinePath } from '@visx/shape';
 import { curveCardinal } from '@visx/curve';
@@ -26,12 +26,13 @@ const TEAM_COLORS: Record<string, string> = {
 
 const DEFAULT_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#a855f7'];
 
-export const TrackMap: React.FC<TrackMapProps> = memo(({ width, height }) => {
+export const TrackMap: React.FC<TrackMapProps> = ({ width, height }) => {
     // Selective state picking to prevent unnecessary re-renders
     const raceData = useRaceStore(state => state.raceData);
     const currentTime = useRaceStore(state => state.currentTime);
     const focusedDriver = useRaceStore(state => state.focusedDriver);
     const setFocusedDriver = useRaceStore(state => state.setFocusedDriver);
+    const circuitMetadata = useRaceStore(state => state.circuitMetadata);
 
     // Define track points with sector info (Static per session)
     const trackPoints = useMemo(() => {
@@ -40,9 +41,9 @@ export const TrackMap: React.FC<TrackMapProps> = memo(({ width, height }) => {
             x: f.x,
             y: f.y,
             dist: f.dist,
-            sector: getSector(f.dist)
+            sector: getSector(f.dist, circuitMetadata)
         }));
-    }, [raceData]);
+    }, [raceData, circuitMetadata]);
 
     // Segment track points for visual distinction (Static per session)
     const segments = useMemo(() => {
@@ -104,12 +105,232 @@ export const TrackMap: React.FC<TrackMapProps> = memo(({ width, height }) => {
         return { x: frame.x, y: frame.y, zoom: 2.2 };
     }, [raceData, focusedDriver, currentTime, trackBounds]);
 
-    if (!raceData || trackPoints.length === 0) return null;
-
     const vbWidth = 1000 / viewport.zoom;
     const vbHeight = 700 / viewport.zoom;
     const vbX = viewport.x - vbWidth / 2;
     const vbY = viewport.y - vbHeight / 2;
+
+    // Keep track of cumulative rotation to avoid 360->0 jumps
+    const lastBearingRef = useRef(0);
+
+    const TacticalUnderlay = useMemo(() => {
+        // Use VIEWPORT bounds instead of track bounds for the background
+        const width = vbWidth;
+        const height = vbHeight;
+        const x = vbX;
+        const y = vbY;
+
+        const { minX, maxX, minY, maxY } = trackBounds;
+        const trackW = maxX - minX;
+        const trackH = maxY - minY;
+
+        // PROCEDURAL GENERATION: Create "Track Furniture" along the spline
+        const trackFeatures: any[] = [];
+
+        if (trackPoints.length > 100) {
+            // Sample points along the track to place features
+            // We skip points to avoid overcrowding
+            const step = Math.floor(trackPoints.length / 40);
+
+            for (let i = 0; i < trackPoints.length - step; i += step) {
+                const p1 = trackPoints[i];
+                const p2 = trackPoints[i + 5] || trackPoints[i + 1]; // Look ahead for tangent
+
+                // Calculate tangent vector
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const len = Math.sqrt(dx * dx + dy * dy);
+
+                // Normalized normal vector (perpendicular)
+                // Rotate 90 degrees: (x, y) -> (-y, x)
+                const nx = -dy / len;
+                const ny = dx / len;
+
+                // Determine side (inside or outside track) based on sector or random
+                // We'll alternate sides or pick 'outside' for grandstands
+                const isOutside = i % (step * 2) === 0;
+                const offsetDist = isOutside ? 60 : -60; // Distance from track center
+
+                const featureX = p1.x + nx * offsetDist;
+                const featureY = p1.y + ny * offsetDist;
+                const rotation = Math.atan2(dy, dx) * 180 / Math.PI; // Align with track
+
+                // Add diverse features
+                const type = (i % 3 === 0) ? 'grandstand' : (i % 5 === 0 ? 'tech' : 'light');
+
+                trackFeatures.push({
+                    x: featureX,
+                    y: featureY,
+                    rotation: rotation,
+                    type: type,
+                    // Dimensions based on type
+                    w: type === 'grandstand' ? 80 : (type === 'tech' ? 40 : 10),
+                    h: type === 'grandstand' ? 20 : (type === 'tech' ? 40 : 10),
+                });
+            }
+        }
+
+        return (
+            <Group style={{ pointerEvents: 'none' }}>
+                {/* Visual Base - Covers entire VIEWPORT (Infinite Background) */}
+                <rect
+                    x={x - width} y={y - height}
+                    width={width * 3} height={height * 3}
+                    fill="#020617" opacity={0.4}
+                />
+
+                {/* Tactical Grid - Covers entire VIEWPORT (Infinite Background) */}
+                <rect
+                    x={x - width}
+                    y={y - height}
+                    width={width * 3}
+                    height={height * 3}
+                    fill="url(#tacticalGrid)"
+                    opacity={0.7}
+                />
+
+                {/* PROCEDURAL TRACKSIDE FEATURES */}
+                {trackFeatures.map((f, i) => (
+                    <Group key={i} transform={`rotate(${f.rotation}, ${f.x}, ${f.y})`}>
+                        <rect
+                            x={f.x - f.w / 2}
+                            y={f.y - f.h / 2}
+                            width={f.w}
+                            height={f.h}
+                            fill={f.type === 'grandstand' ? '#1e293b' : (f.type === 'tech' ? '#0f172a' : '#334155')}
+                            stroke={f.type === 'light' ? '#facc15' : '#0ea5e9'}
+                            strokeWidth={f.type === 'light' ? 2 : 0.5}
+                            strokeOpacity={f.type === 'light' ? 0.6 : 0.3}
+                            opacity={0.5}
+                        />
+                        {/* Detail lines for grandstands */}
+                        {f.type === 'grandstand' && (
+                            <line
+                                x1={f.x - f.w / 2} y1={f.y}
+                                x2={f.x + f.w / 2} y2={f.y}
+                                stroke="#0ea5e9" strokeWidth={0.5} opacity={0.2}
+                            />
+                        )}
+                    </Group>
+                ))}
+
+                {/* Coordinate Crosshairs - Relative to TRACK bounds */}
+                {[0.25, 0.5, 0.75].map(v => (
+                    <React.Fragment key={v}>
+                        <line
+                            x1={minX + trackW * v} y1={minY - 1000}
+                            x2={minX + trackW * v} y2={maxY + 1000}
+                            stroke="#0ea5e9" strokeWidth={0.5} strokeDasharray="5,5" opacity={0.2}
+                        />
+                        <line
+                            x1={minX - 1000} y1={minY + trackH * v}
+                            x2={maxX + 1000} y2={minY + trackH * v}
+                            stroke="#0ea5e9" strokeWidth={0.5} strokeDasharray="5,5" opacity={0.2}
+                        />
+                        <text
+                            x={minX + trackW * v + 5} y={minY - 10}
+                            fontSize={7} fill="#64748b" opacity={0.5}
+                            style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 600 }}
+                        >
+                            {(144.9 + v * 0.1).toFixed(4)}°E
+                        </text>
+                        <text
+                            x={minX - 70} y={minY + trackH * v - 5}
+                            fontSize={7} fill="#64748b" opacity={0.5}
+                            style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 600 }}
+                        >
+                            {(37.8 + v * 0.1).toFixed(4)}°S
+                        </text>
+                    </React.Fragment>
+                ))}
+            </Group>
+        );
+    }, [trackBounds, vbX, vbY, vbWidth, vbHeight, trackPoints]); // Added trackPoints dependency
+
+    const TacticalCompass = useMemo(() => {
+        // Positioned top-right relative to viewport
+        const size = 60 / viewport.zoom;
+        const padding = 80 / viewport.zoom;
+
+        const compassX = vbX + vbWidth - padding;
+        const compassY = vbY + padding;
+
+        // Calculate current bearing/heading
+        let targetBearing = 0; // Default North
+        let bearingSource = 'TRACK';
+
+        if (raceData && focusedDriver) {
+            // Get focused driver's current and next position to calculate heading
+            const driver = raceData.drivers.find(d => d.driver_abbr === focusedDriver);
+            if (driver) {
+                const currentFrame = getInterpolatedFrame(driver.telemetry, currentTime);
+                const nextFrame = getInterpolatedFrame(driver.telemetry, currentTime + 0.1);
+
+                const dx = nextFrame.x - currentFrame.x;
+                const dy = nextFrame.y - currentFrame.y;
+
+                // Calculate bearing (0° = North, 90° = East)
+                targetBearing = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
+                bearingSource = focusedDriver;
+            }
+        }
+
+        // Calculate shortest rotation path to target
+        const current = lastBearingRef.current;
+        const normalizedCurrent = (current % 360 + 360) % 360;
+        let delta = targetBearing - normalizedCurrent;
+
+        // Take the shortest path
+        if (delta > 180) delta -= 360;
+        if (delta < -180) delta += 360;
+
+        lastBearingRef.current += delta;
+        const smoothedBearing = lastBearingRef.current;
+        const displayBearing = (Math.round(targetBearing) % 360 + 360) % 360;
+
+        return (
+            <Group top={compassY} left={compassX} style={{ pointerEvents: 'none' }}>
+                <circle r={size} fill="rgba(15, 23, 42, 0.6)" stroke="#0ea5e9" strokeWidth={1} strokeOpacity={0.3} />
+                <circle r={size * 0.8} fill="none" stroke="#64748b" strokeWidth={0.5} strokeOpacity={0.2} strokeDasharray="2,2" />
+
+                {/* Rotating compass rose with smooth transition */}
+                <Group
+                    style={{
+                        transform: `rotate(${-smoothedBearing}deg)`,
+                        transformOrigin: '0px 0px',
+                        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }}
+                >
+                    {/* North Indicator (Red) */}
+                    <path d={`M 0 -${size * 0.7} L 4 0 L -4 0 Z`} fill="#ef4444" opacity={0.9} />
+                    <text y={-size - 10} textAnchor="middle" fontSize={10} fill="#ffffff" fontWeight={800} style={{ fontFamily: 'JetBrains Mono' }}>N</text>
+
+                    {/* South Indicator (White) */}
+                    <path d={`M 0 ${size * 0.7} L 4 0 L -4 0 Z`} fill="#ffffff" opacity={0.4} />
+
+                    {/* Tactical markers */}
+                    {Array.from({ length: 8 }).map((_, i) => (
+                        <line
+                            key={i}
+                            y1={-size * 0.85} y2={-size * 0.7}
+                            transform={`rotate(${i * 45})`}
+                            stroke="#0ea5e9" strokeWidth={1} strokeOpacity={0.5}
+                        />
+                    ))}
+                </Group>
+
+                {/* Bearing display (fixed orientation) */}
+                <text y={size + 15} textAnchor="middle" fontSize={9} fill="#0ea5e9" fontWeight={700} style={{ fontFamily: 'JetBrains Mono' }}>
+                    {displayBearing.toString().padStart(3, '0')}°
+                </text>
+                <text y={size + 27} textAnchor="middle" fontSize={7} fill="#64748b" fontWeight={600} style={{ fontFamily: 'JetBrains Mono' }}>
+                    {bearingSource}
+                </text>
+            </Group>
+        );
+    }, [vbX, vbY, vbHeight, viewport.zoom, raceData, focusedDriver, currentTime]);
+
+    if (!raceData || trackPoints.length === 0) return null;
 
     return (
         <svg
@@ -123,9 +344,37 @@ export const TrackMap: React.FC<TrackMapProps> = memo(({ width, height }) => {
                     <feGaussianBlur stdDeviation="3" result="blur" />
                     <feComposite in="SourceGraphic" in2="blur" operator="over" />
                 </filter>
+
+                <pattern id="tacticalGrid" width="60" height="60" patternUnits="userSpaceOnUse">
+                    <circle cx="2" cy="2" r="1" fill="#0ea5e9" opacity="0.6" />
+                    <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#1e293b" strokeWidth="0.5" opacity="0.2" />
+                </pattern>
+
+                <radialGradient
+                    id="trackFade"
+                    cx={viewport.x}
+                    cy={viewport.y}
+                    r={Math.max(vbWidth, vbHeight) * 0.8}
+                    gradientUnits="userSpaceOnUse"
+                >
+                    <stop offset="0%" stopColor="white" stopOpacity="1" />
+                    <stop offset="50%" stopColor="white" stopOpacity="0.7" />
+                    <stop offset="100%" stopColor="white" stopOpacity="0" />
+                </radialGradient>
+
+                <mask id="vignetteMask" maskUnits="userSpaceOnUse">
+                    <rect x={vbX - 100} y={vbY - 100} width={vbWidth + 200} height={vbHeight + 200} fill="url(#trackFade)" />
+                </mask>
             </defs>
 
             <Group>
+                {/* Background Tactical Layer */}
+                <Group mask="url(#vignetteMask)">
+                    {TacticalUnderlay}
+                </Group>
+
+                {TacticalCompass}
+
                 {/* Static Track Layer */}
                 {segments.map((seg, i) => (
                     <LinePath
@@ -251,4 +500,4 @@ export const TrackMap: React.FC<TrackMapProps> = memo(({ width, height }) => {
             </Group>
         </svg>
     );
-});
+};

@@ -1,0 +1,166 @@
+{
+    "circuits": [
+        {
+            "id": "2024-bahrain",
+            "name": "Bahrain Grand Prix",
+            "location": "Sakhir, Bahrain",
+            "lapLength": 5412,
+            "sectors": {
+                "s1_end": 1353,
+                "s2_end": 3517
+            },
+            "sessions": [
+                {
+                    "id": "2024-bahrain-sample",
+                    "name": "2024 Race (Starter Set)",
+                    "description": "Initial 2 laps of the 2024 Bahrain GP.",
+                    "file": "/data/2024_Bahrain_sample.json"
+                }
+            ]
+        },
+        {
+            "id": "2024-saudi-arabia",
+            "name": "Saudi Arabian Grand Prix",
+            "location": "Jeddah, Saudi Arabia",
+            "lapLength": 6174,
+            "sectors": {
+                "s1_end": 1543,
+                "s2_end": 4013
+            },
+            "sessions": [
+                {
+                    "id": "2024-saudi-arabia-sample",
+                    "name": "2024 Race (Starter Set)",
+                    "description": "Initial 2 laps of the 2024 Saudi Arabian GP.",
+                    "file": "/data/2024_Saudi_Arabia_sample.json"
+                }
+            ]
+        },
+        {
+            "id": "2024-australia",
+            "name": "Australian Grand Prix",
+            "location": "Melbourne, Australia",
+            "lapLength": 5278,
+            "sectors": {
+                "s1_end": 1319,
+                "s2_end": 3430
+            },
+            "sessions": [
+                {
+                    "id": "2024-australia-sample",
+                    "name": "2024 Race (Starter Set)",
+                    "description": "Initial 2 laps of the 2024 Australian GP.",
+                    "file": "/data/2024_Australia_sample.json"
+                }
+            ]
+        },
+        {
+            "id": "monaco",
+            "name": "Monaco Grand Prix",
+            "location": "Monte Carlo, Monaco",
+            "lapLength": 3337,
+            "sectors": {
+                "s1_end": 800,
+                "s2_end": 1800
+            },
+            "sessions": [
+                {
+                    "id": "2024-monaco-full-optimized",
+                    "name": "2024 Race (Full Grid Optimized)",
+                    "description": "Compressed full grid data from the 2024 GP.",
+                    "file": "/data/2024_Monaco_full_grid_optimized.json"
+                },
+                {
+                    "id": "2024-monaco-phase2",
+                    "name": "2024 Race (Multi-Lap Analysis)",
+                    "description": "Detailed multi-lap data with tyre strategy.",
+                    "file": "/data/2024_Monaco_phase2.json"
+                },
+                {
+                    "id": "2024-monaco-ver",
+                    "name": "2024 Race (Verstappen POV)",
+                    "description": "High-fidelity POV data for Max Verstappen.",
+                    "file": "/data/2024_Monaco_VER_race.json"
+                },
+                {
+                    "id": "2024-monaco-multi",
+                    "name": "2024 Race (Multi-Lap Sample)",
+                    "description": "Short multi-lap sample for testing transitions.",
+                    "file": "/data/2024_Monaco_multi.json"
+                }
+            ]
+        },
+        {
+            "id": "2024-silverstone",
+            "name": "Silverstone Grand Prix",
+            "location": "Silverstone, UK",
+            "lapLength": 5891,
+            "sectors": {
+                "s1_end": 1472,
+                "s2_end": 3829
+            },
+            "sessions": [
+                {
+                    "id": "2024-silverstone-sample",
+                    "name": "2024 Race (Starter Set)",
+                    "description": "Initial 2 laps of the 2024 Silverstone GP with acceleration.",
+                    "file": "/data/2024_Silverstone_sample.json"
+                }
+            ]
+        },
+        {
+            "id": "2024-spa",
+            "name": "Spa Grand Prix",
+            "location": "Stavelot, Belgium",
+            "lapLength": 7004,
+            "sectors": {
+                "s1_end": 1751,
+                "s2_end": 4552
+            },
+            "sessions": [
+                {
+                    "id": "2024-spa-sample",
+                    "name": "2024 Race (Starter Set)",
+                    "description": "Initial 2 laps of the 2024 Spa GP with acceleration.",
+                    "file": "/data/2024_Spa_sample.json"
+                }
+            ]
+        },
+        {
+            "id": "2024-zandvoort",
+            "name": "Dutch Grand Prix",
+            "location": "Zandvoort, Netherlands",
+            "lapLength": 4259,
+            "sectors": {
+                "s1_end": 1064,
+                "s2_end": 2768
+            },
+            "sessions": [
+                {
+                    "id": "2024-zandvoort-sample",
+                    "name": "2024 Race (Starter Set)",
+                    "description": "Initial 2 laps of the 2024 Dutch GP.",
+                    "file": "/data/2024_Zandvoort_sample.json"
+                }
+            ]
+        },
+        {
+            "id": "2024-monza",
+            "name": "Italian Grand Prix",
+            "location": "Monza, Italy",
+            "lapLength": 5793,
+            "sectors": {
+                "s1_end": 1448,
+                "s2_end": 3765
+            },
+            "sessions": [
+                {
+                    "id": "2024-monza-sample",
+                    "name": "2024 Race (Starter Set)",
+                    "description": "Initial 2 laps of the 2024 Italian GP.",
+                    "file": "/data/2024_Monza_sample.json"
+                }
+            ]
+        }
+    ]
+}

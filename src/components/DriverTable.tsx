@@ -4,9 +4,10 @@ import { getInterpolatedFrame } from '../utils/interpolation';
 import { getSector } from '../utils/constants';
 
 export const DriverTable: React.FC = () => {
-    const { raceData, currentTime, focusedDriver, setFocusedDriver } = useRaceStore();
+    const { raceData, currentTime, focusedDriver, comparisonDriver, circuitMetadata, setFocusedDriver } = useRaceStore();
 
     const trackLength = useRaceStore(state => state.trackLength);
+    const sessionBestLap = useRaceStore(state => state.sessionBestLap);
 
     const driverRows = useMemo(() => {
         if (!raceData) return [];
@@ -28,7 +29,7 @@ export const DriverTable: React.FC = () => {
 
         return raceData.drivers.map((driver) => {
             const currentFrame = getInterpolatedFrame(driver.telemetry, currentTime);
-            const sector = getSector(currentFrame.dist);
+            const sector = getSector(currentFrame.dist, circuitMetadata);
 
             // Find current stint based on lap
             const currentStint = driver.stints.find(
@@ -41,12 +42,14 @@ export const DriverTable: React.FC = () => {
             const gap = leaderDist - myTotalDist;
 
             // Sector Progress (0-100%)
-            // Simple mapping for POC: S1: 0-33%, S2: 33-66%, S3: 66-100%
             const progress = (currentFrame.dist / trackLength) * 100;
             let sectorProgress = 0;
             if (sector === 1) sectorProgress = (progress / 33) * 100;
             else if (sector === 2) sectorProgress = ((progress - 33) / 33) * 100;
             else sectorProgress = ((progress - 66) / 34) * 100;
+
+            // Find personal best lap
+            const pBest = Math.min(...Object.values(driver.lapTimes || {}));
 
             return {
                 ...driver,
@@ -55,10 +58,11 @@ export const DriverTable: React.FC = () => {
                 sector,
                 stintNumber: currentStint?.stint || 1,
                 gap,
-                sectorProgress: Math.min(100, Math.max(0, sectorProgress))
+                sectorProgress: Math.min(100, Math.max(0, sectorProgress)),
+                personalBestLap: pBest
             };
         }).sort((a, b) => a.pos - b.pos);
-    }, [raceData, currentTime, trackLength]);
+    }, [raceData, currentTime, trackLength, circuitMetadata]);
 
     if (!raceData) return null;
 
@@ -94,8 +98,16 @@ export const DriverTable: React.FC = () => {
                             return (
                                 <tr
                                     key={driver.driver_abbr}
-                                    className={`driver-row ${isFocused ? 'focused' : ''}`}
-                                    onClick={() => setFocusedDriver(isFocused ? null : driver.driver_abbr)}
+                                    className={`driver-row ${isFocused ? 'focused' : ''} ${comparisonDriver === driver.driver_abbr ? 'comparing' : ''}`}
+                                    onClick={(e) => {
+                                        if (e.altKey) {
+                                            useRaceStore.getState().setComparisonDriver(
+                                                comparisonDriver === driver.driver_abbr ? null : driver.driver_abbr
+                                            );
+                                        } else {
+                                            setFocusedDriver(isFocused ? null : driver.driver_abbr);
+                                        }
+                                    }}
                                 >
                                     <td className="td-pos">{driver.pos}</td>
                                     <td className="td-driver">
@@ -116,7 +128,14 @@ export const DriverTable: React.FC = () => {
                                     <td className="td-gap">
                                         {driver.pos === 1 ? 'LEADER' : `+${Math.round((Number(gap) || 0) * 10) / 10}m`}
                                     </td>
-                                    <td className="td-last">
+                                    <td className={`td-last ${(() => {
+                                        const lastLapNum = currentFrame.lap - 1;
+                                        const time = driver.lapTimes?.[lastLapNum];
+                                        if (!time) return '';
+                                        if (time <= sessionBestLap) return 'purple';
+                                        if (time <= driver.personalBestLap) return 'green';
+                                        return '';
+                                    })()}`}>
                                         {(() => {
                                             const lastLapNum = currentFrame.lap - 1;
                                             const time = driver.lapTimes?.[lastLapNum];

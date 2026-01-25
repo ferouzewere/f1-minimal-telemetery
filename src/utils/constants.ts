@@ -1,17 +1,17 @@
-export const MONACO_SECTORS = {
-    S1_END: 800,
-    S2_END: 1800,
-    LAP_LENGTH: 3337
-};
+import type { CircuitMetadata } from '../store/useRaceStore';
 
 export type Sector = 1 | 2 | 3;
 
 /**
- * Determines current sector based on lap distance
+ * Determines current sector based on lap distance and circuit metadata
  */
-export const getSector = (dist: number): Sector => {
-    const lapDist = dist % MONACO_SECTORS.LAP_LENGTH;
-    if (lapDist < MONACO_SECTORS.S1_END) return 1;
-    if (lapDist < MONACO_SECTORS.S2_END) return 2;
+export const getSector = (dist: number, metadata: CircuitMetadata | null): Sector => {
+    const lapLength = metadata?.lapLength || 3337;
+    const s1 = metadata?.sectors.s1_end || 800;
+    const s2 = metadata?.sectors.s2_end || 1800;
+
+    const lapDist = dist % lapLength;
+    if (lapDist < s1) return 1;
+    if (lapDist < s2) return 2;
     return 3;
 };

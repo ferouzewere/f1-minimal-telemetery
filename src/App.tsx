@@ -1,9 +1,4 @@
-/**
- * Monaco Grand Prix - Real Track Data Visualization
- * Uses authentic 2024 Monaco GP lap data from FastF1
- */
-
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TrackMap } from './components/TrackMap'
 import { Speedometer } from './components/Speedometer'
@@ -12,47 +7,46 @@ import { GlobalMultiGraph } from './components/GlobalMultiGraph'
 import { TelemetryHUD } from './components/TelemetryHUD'
 import { PlaybackControls } from './components/PlaybackControls'
 import { useRaceStore, type DriverData } from './store/useRaceStore'
+import { SessionSelector } from './components/SessionSelector'
 import { ParentSize } from '@visx/responsive'
 import './App.css'
 
 function App() {
-  // Select ONLY static/low-frequency state for the root component
   const loadRaceData = useRaceStore(state => state.loadRaceData)
   const raceData = useRaceStore(state => state.raceData)
   const focusedDriver = useRaceStore(state => state.focusedDriver)
   const isPlaying = useRaceStore(state => state.isPlaying)
   const setIsPlaying = useRaceStore(state => state.setIsPlaying)
   const setCurrentTime = useRaceStore(state => state.setCurrentTime)
+  const circuitMetadata = useRaceStore(state => state.circuitMetadata)
 
-  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+  const [isNavOpen, setIsNavOpen] = useState(false)
 
-  const availableCircuits = [
-    { id: 'monaco', name: 'Monaco Grand Prix', year: 2024, file: '/data/2024_Monaco_phase2.json' },
-    { id: 'silverstone', name: 'British Grand Prix (Coming Soon)', year: 2024, disabled: true },
-    { id: 'spa', name: 'Belgian Grand Prix (Coming Soon)', year: 2024, disabled: true },
-  ];
-
-  // Load Phase 2 Data (Multi-Lap Support)
+  // Initial Load from Manifest
   useEffect(() => {
-    fetch('/data/2024_Monaco_phase2.json')
-      .then(res => res.json())
-      .then(data => loadRaceData(data))
-      .catch(err => console.error("Failed to load race data:", err));
-  }, [loadRaceData]);
-
-  // Close selector when clicking outside
-  useEffect(() => {
-    const handleDown = () => setIsSelectorOpen(false);
-    if (isSelectorOpen) {
-      window.addEventListener('mousedown', handleDown);
+    if (!raceData) {
+      fetch('/sessions.json')
+        .then(res => res.json())
+        .then(async (manifest) => {
+          const defaultCircuit = manifest.circuits[0];
+          const defaultSession = defaultCircuit.sessions[0];
+          const res = await fetch(defaultSession.file);
+          const data = await res.json();
+          loadRaceData(data, {
+            id: defaultCircuit.id,
+            name: defaultCircuit.name,
+            location: defaultCircuit.location,
+            lapLength: defaultCircuit.lapLength,
+            sectors: defaultCircuit.sectors
+          });
+        })
+        .catch(err => console.error("Initial load failed:", err));
     }
-    return () => window.removeEventListener('mousedown', handleDown);
-  }, [isSelectorOpen]);
+  }, [loadRaceData, raceData]);
 
-  // Calculate Effective Race Duration (Total duration in data)
+  // Calculate Effective Race Duration
   const raceDuration = useMemo(() => {
     if (!raceData) return 0;
-
     let maxT = 0;
     raceData.drivers.forEach((driver: DriverData) => {
       const lastFrame = driver.telemetry[driver.telemetry.length - 1];
@@ -60,35 +54,29 @@ function App() {
         maxT = lastFrame.t;
       }
     });
-
     return maxT;
   }, [raceData]);
 
-  // Playback Loop (Smooth rAF)
+  // Playback Loop
   useEffect(() => {
     if (!isPlaying || !raceData) return;
-
     let lastTimestamp = performance.now();
     let frameId: number;
-
     const loop = (now: number) => {
       const delta = now - lastTimestamp;
       lastTimestamp = now;
-
       const current = useRaceStore.getState().currentTime;
-      let nextTime = current + delta;
-
+      const speed = useRaceStore.getState().playSpeed;
+      let nextTime = current + (delta * speed);
       if (nextTime >= raceDuration) {
         nextTime = raceDuration;
-        setIsPlaying(false); // Stop at end
+        setIsPlaying(false);
         setCurrentTime(nextTime);
-        return; // Exit loop
+        return;
       }
-
       setCurrentTime(nextTime);
       frameId = requestAnimationFrame(loop);
     };
-
     frameId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frameId);
   }, [isPlaying, raceData, setCurrentTime, raceDuration, setIsPlaying]);
@@ -97,55 +85,30 @@ function App() {
 
   return (
     <div className="app-container">
-      <header className="app-header">
-        <div className="header-spacer"></div>
-        <div
-          className={`header-center race-selector ${isSelectorOpen ? 'open' : ''}`}
-          title="Select Circuit"
-          onClick={() => setIsSelectorOpen(!isSelectorOpen)}
-        >
-          <div className="race-selector-border-v left"></div>
-          <div className="race-selector-border-v right"></div>
-          <div className="header-info">
-            <h1>{raceData?.race_name || 'F1 Minimal Telemetry'}</h1>
-            <span className="subtitle">FULL GRID MONITOR • MONACO 2024</span>
+      <header className={`app-header-hub ${isNavOpen ? 'nav-expanded' : ''}`}>
+        <div className="nav-command-center" onClick={() => setIsNavOpen(!isNavOpen)}>
+          <div className="hub-identity">
+            <h1>{raceData?.race_name || 'F1 MONITOR'}</h1>
+            <span className="subtitle">
+              {circuitMetadata?.name || 'TRACK MONITOR'}
+            </span>
           </div>
-          <svg className="selector-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
-
-          {isSelectorOpen && (
-            <div className="race-dropdown">
-              <div className="dropdown-header">AVAILABLE SESSIONS</div>
-              {availableCircuits.map((c) => (
-                <div
-                  key={c.id}
-                  className={`dropdown-item ${c.disabled ? 'disabled' : ''} ${c.name === raceData?.race_name ? 'active' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (c.disabled || !c.file) return;
-                    fetch(c.file)
-                      .then(res => res.json())
-                      .then(data => loadRaceData(data))
-                      .finally(() => setIsSelectorOpen(false));
-                  }}
-                >
-                  <div className="item-main">
-                    <span className="year">{c.year}</span>
-                    <span className="name">{c.name}</span>
-                  </div>
-                  {c.disabled && <span className="status-tag">UPCOMING</span>}
-                  {c.name === raceData?.race_name && <div className="active-dot"></div>}
-                </div>
-              ))}
-            </div>
-          )}
+          <motion.div
+            className="hub-indicator"
+            animate={{ rotate: isNavOpen ? 180 : 0 }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </motion.div>
         </div>
-        <div className="status">
-          <span>{isPlaying ? 'PLAYING' : 'PAUSED'}</span>
-          <div className={`dot ${isPlaying ? 'active' : ''}`}></div>
+        <div className="hub-status-bar">
+          <div className={`status-dot ${isPlaying ? 'active' : ''}`} />
+          <span className="status-text">{isPlaying ? 'LIVE' : 'PAUSED'}</span>
         </div>
       </header>
+
+      <SessionSelector isOpen={isNavOpen} setIsOpen={setIsNavOpen} />
 
       <main className="app-main">
         <div className="track-section">
@@ -196,7 +159,7 @@ function App() {
           <PlaybackControls />
         </aside>
       </main>
-    </div>
+    </div >
   )
 }
 

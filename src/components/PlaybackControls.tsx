@@ -33,12 +33,26 @@ export const PlaybackControls: React.FC = () => {
 
     return (
         <div className="controls-card">
-            <button
-                className={`play-btn ${isPlaying ? 'playing' : ''}`}
-                onClick={togglePlay}
-            >
-                {isPlaying ? 'STOP' : 'START REPLAY'}
-            </button>
+            <div className="playback-main">
+                <button
+                    className={`play-btn ${isPlaying ? 'playing' : ''}`}
+                    onClick={togglePlay}
+                >
+                    {isPlaying ? 'STOP' : 'START REPLAY'}
+                </button>
+
+                <div className="speed-presets">
+                    {[0.5, 1, 2, 5].map(speed => (
+                        <button
+                            key={speed}
+                            className={`speed-tag ${useRaceStore.getState().playSpeed === speed ? 'active' : ''}`}
+                            onClick={() => useRaceStore.getState().setPlaySpeed(speed)}
+                        >
+                            {speed}x
+                        </button>
+                    ))}
+                </div>
+            </div>
 
             <div className="scrubber-container">
                 <div className="scrubber-timer-box">

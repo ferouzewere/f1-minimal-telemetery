@@ -8,20 +8,19 @@ export const TelemetryHUD: React.FC = () => {
     const {
         currentTime,
         raceData,
-        focusedDriver
+        focusedDriver,
+        comparisonDriver
     } = useRaceStore();
 
-    const focusedDriverData = React.useMemo(() => {
-        if (!raceData || !focusedDriver) return null;
-        return raceData.drivers.find(d => d.driver_abbr === focusedDriver);
-    }, [raceData, focusedDriver]);
+    const drivers = React.useMemo(() => {
+        if (!raceData) return [];
+        return [focusedDriver, comparisonDriver]
+            .filter(Boolean)
+            .map(abbr => raceData.drivers.find(d => d.driver_abbr === abbr))
+            .filter(Boolean);
+    }, [raceData, focusedDriver, comparisonDriver]);
 
-    const currentFrame = React.useMemo(() => {
-        if (!focusedDriverData) return null;
-        return getInterpolatedFrame(focusedDriverData.telemetry, currentTime);
-    }, [focusedDriverData, currentTime]);
-
-    if (!focusedDriverData) return (
+    if (drivers.length === 0) return (
         <div className="telemetry-placeholder">
             <span className="label">SYSTEM IDLE • SELECT DRIVER FOR TELEMETRY</span>
         </div>
@@ -29,26 +28,37 @@ export const TelemetryHUD: React.FC = () => {
 
     return (
         <div className="telemetry-hud-container">
-            <div className="telemetry-bar visible">
-                <div className="telemetry-item">
-                    <span className="label">FOCUS: {focusedDriverData.driver_abbr}</span>
-                    <span className="value gear">{currentFrame?.gear || '-'}</span>
-                </div>
-                <div className="telemetry-item">
-                    <span className="label">THROTTLE</span>
-                    <div className="bar-bg">
-                        <div className="bar-fill throttle" style={{ width: `${currentFrame?.throttle || 0}%` }}></div>
-                    </div>
-                </div>
-                <div className="telemetry-item">
-                    <span className="label">BRAKE</span>
-                    <div className="bar-bg">
-                        <div className="bar-fill brake" style={{ width: `${currentFrame?.brake || 0}%` }}></div>
-                    </div>
-                </div>
+            <div className={`telemetry-grid ${drivers.length > 1 ? 'dual' : ''}`}>
+                {drivers.map(driver => {
+                    const currentFrame = getInterpolatedFrame(driver!.telemetry, currentTime);
+                    return (
+                        <div key={driver!.driver_abbr} className="telemetry-bar visible">
+                            <div className="telemetry-item">
+                                <span className="label">DRV: {driver!.driver_abbr}</span>
+                                <span className="value gear">{currentFrame?.gear || '-'}</span>
+                            </div>
+                            <div className="telemetry-item">
+                                <span className="label">THR</span>
+                                <div className="bar-bg">
+                                    <div className="bar-fill throttle" style={{ width: `${currentFrame?.throttle || 0}%` }}></div>
+                                </div>
+                            </div>
+                            <div className="telemetry-item">
+                                <span className="label">BRK</span>
+                                <div className="bar-bg">
+                                    <div className="bar-fill brake" style={{ width: `${currentFrame?.brake || 0}%` }}></div>
+                                </div>
+                            </div>
+                            <div className="telemetry-item">
+                                <span className="label">ACC</span>
+                                <span className="value">{currentFrame?.ax?.toFixed(1) || '0.0'}G</span>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
-            <StintTimeline />
-            <LapHistory />
+            {focusedDriver && <StintTimeline />}
+            {focusedDriver && <LapHistory />}
         </div>
     );
 };

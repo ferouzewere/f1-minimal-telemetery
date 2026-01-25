@@ -33,7 +33,9 @@ export const interpolateFrames = (
         compound: f0.compound, // String doesn't interpolate
         tyre_age: f0.tyre_age, // Integer discrete doesn't interpolate smoothly in life
         is_pit: f0.is_pit || f1.is_pit, // Show pit if either is true to avoid flicker
-        drs: t < 0.5 ? f0.drs : f1.drs
+        drs: t < 0.5 ? f0.drs : f1.drs,
+        ax: lerp(f0.ax || 0, f1.ax || 0, t),
+        ay: lerp(f0.ay || 0, f1.ay || 0, t)
     };
 };
 
