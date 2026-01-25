@@ -27,19 +27,87 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
     const brake = currentFrame?.brake || 0;
     const gear = currentFrame?.gear || 0; // Assuming 0=N, 1-8=Gears
 
+    // Minimum visual thresholds for visibility
+    const vizThrottle = throttle > 1 ? Math.max(throttle, 5) : throttle;
+    const vizBrake = brake > 1 ? Math.max(brake, 5) : brake;
+
     // Gear Mapping
     const GEARS = ['R', 'N', '1', '2', '3', '4', '5', '6', '7', '8'];
-    // Map telemetry gear val to index. 0 -> 'N' (index 1). 1 -> '1' (index 2).
-    // If gear is negative or whatever, fallback to N or R logic.
-    // For now assuming gear is int.
     const currentGearIndex = GEARS.indexOf(String(gear)) !== -1 ? GEARS.indexOf(String(gear)) : (gear === 0 ? 1 : 1);
 
-    const radius = Math.min(width, height) / 2 - 10;
+    // --- RPM SIMULATION LOGIC ---
+    // Theoretical Max Speeds per Gear (Approximate 2024 F1 Specs)
+    const MAX_SPEEDS = [
+        360, // R (Ignored mostly)
+        360, // N
+        130, // 1st
+        170, // 2nd
+        210, // 3rd
+        250, // 4th
+        290, // 5th
+        325, // 6th
+        360, // 7th
+        395  // 8th
+    ];
+    const MAX_RPM = 12500;
+    const IDLE_RPM = 4000;
+
+    // Calculate RPM
+    let rpm = IDLE_RPM;
+    if (gear > 0) { // Moving in Gear
+        const gearMaxSpeed = MAX_SPEEDS[gear + 1] || 360;
+
+        // Simple linear map for now: 0 -> MaxSpeed maps to 0 -> MaxRPM? No.
+        // RPM = (Speed / MaxGearSpeed) * PeakRPM.
+        // But we need to account for power band.
+        // Let's simplified linear ratio:
+        rpm = (speed / gearMaxSpeed) * MAX_RPM;
+        // Clamp to min/max
+        rpm = Math.max(IDLE_RPM, Math.min(MAX_RPM, rpm));
+
+        // Add "Noise" or variation based on throttle if clutch is engaged? 
+        // No, in gear, RPM is locked to wheel speed.
+    } else { // Neutral or Reverse
+        // Rev based on throttle input
+        rpm = IDLE_RPM + ((throttle / 100) * (MAX_RPM - IDLE_RPM));
+    }
+
+    // RPM Color Logic
+    // 0-10k: Green
+    // 10k-11.5k: Red
+    // 11.5k-12.5k: Blue/Purple (Shift)
+
+    // Rev Lights (LED Array)
+    const REV_LEDS = 15;
+    const ledData = useMemo(() => {
+        const leds = [];
+        for (let i = 0; i < REV_LEDS; i++) {
+            const threshold = IDLE_RPM + ((MAX_RPM - IDLE_RPM) / REV_LEDS) * i;
+            const isOn = rpm >= threshold;
+
+            // Color Bands
+            let color = '#22c55e'; // Green
+            if (i >= 5) color = '#ef4444'; // Red
+            if (i >= 10) color = '#3b82f6'; // Blue
+            if (i >= 13) color = '#a855f7'; // Purple
+
+            leds.push({ id: i, isOn, color });
+        }
+        return leds;
+    }, [rpm]);
+
+
+    const radius = Math.min(width, height) / 2 - 25;
     const innerRadius = radius * 0.85;
+    // Thicker telemetry ring
     // Thicker telemetry ring
     const telemetryThickness = 15;
     const telemetryOuter = radius * 0.70;
     const telemetryInner = telemetryOuter - telemetryThickness;
+
+    // RPM Gauge Radius (Inside speed)
+    const rpmRadius = innerRadius - 15;
+    const rpmInner = rpmRadius - 2;
 
     const speedScale = useMemo(() =>
         scaleLinear({
@@ -49,23 +117,16 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
             range: [-Math.PI * 0.75, Math.PI * 0.75],
         }), []);
 
+    const rpmScale = useMemo(() =>
+        scaleLinear({
+            domain: [0, MAX_RPM],
+            range: [-Math.PI * 0.75, Math.PI * 0.75]
+        }), []);
+
     // Generate tick marks
     const ticks = useMemo(() => {
         const tickData = [];
         for (let i = 0; i <= 360; i += 20) {
-            // Actually, let's use the rotation group approach for ticks to match scale exactly?
-            // Or just manual trig.
-            // If scale 0 is -0.75PI (Bottom Left, -135deg). 
-            // In standard trig, -135deg is Bottom Left? No.
-            // Standard Trig: 0 is Right. -90 is Top. -135 is Top Left.
-            // VisX Arc: 0 is Top (12 o'clock). Clockwise positive.
-            // So -0.75PI is -135deg (Bottom Left of circle, going CCW from Top).
-            // +0.75PI is +135deg (Bottom Right of circle).
-
-            // For x/y calculation:
-            // Angle relative to "Right" (Standard Math):
-            // VisX 0 (Top) is -90deg (Math).
-            // So MathAngle = VisXAngle - PI/2.
             const visXAngle = speedScale(i);
             const mathAngle = visXAngle - Math.PI / 2;
 
@@ -90,7 +151,7 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                     <feGaussianBlur stdDeviation="2" result="blur" />
                     <feComposite in="SourceGraphic" in2="blur" operator="over" />
                 </filter>
-                {/* Mask for Gear Carousel - Luminance mask needs WHITE to be visible */}
+                {/* Mask for Gear Carousel */}
                 <linearGradient id="carouselMask" x1="0" y1="0" x2="1" y2="0">
                     <stop offset="0%" stopColor="white" stopOpacity="0" />
                     <stop offset="25%" stopColor="white" stopOpacity="1" />
@@ -100,18 +161,17 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
 
                 {/* Vertical Gradients */}
                 <linearGradient id="throttleGrad" x1="0" y1="1" x2="0" y2="0">
-                    <stop offset="0%" stopColor="#22c55e" stopOpacity={0.6} />
+                    <stop offset="0%" stopColor="#22c55e" stopOpacity={0.8} />
                     <stop offset="100%" stopColor="#22c55e" stopOpacity={1} />
                 </linearGradient>
                 <linearGradient id="brakeGrad" x1="0" y1="1" x2="0" y2="0">
-                    <stop offset="0%" stopColor="#ef4444" stopOpacity={0.6} />
+                    <stop offset="0%" stopColor="#ef4444" stopOpacity={0.8} />
                     <stop offset="100%" stopColor="#ef4444" stopOpacity={1} />
                 </linearGradient>
             </defs>
 
             <Group top={height / 2} left={width / 2}>
                 {/* --- SPEEDOMETER OUTER RING --- */}
-
                 <Arc
                     innerRadius={innerRadius}
                     outerRadius={radius}
@@ -121,7 +181,6 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                     opacity={0.3}
                     cornerRadius={4}
                 />
-
                 <Arc
                     innerRadius={innerRadius}
                     outerRadius={radius}
@@ -130,11 +189,32 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                     fill="url(#speedGradient)"
                     cornerRadius={4}
                 />
-
                 <linearGradient id="speedGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                     <stop offset="0%" stopColor="#3b82f6" />
                     <stop offset="100%" stopColor="#60a5fa" />
                 </linearGradient>
+
+                {/* --- RPM GAUGE (Inner Ring) --- */}
+                {/* Background */}
+                <Arc
+                    innerRadius={rpmInner}
+                    outerRadius={rpmRadius}
+                    startAngle={-Math.PI * 0.75}
+                    endAngle={Math.PI * 0.75}
+                    fill="#0f172a"
+                    opacity={0.5}
+                    cornerRadius={2}
+                />
+                {/* Active RPM */}
+                <Arc
+                    innerRadius={rpmInner}
+                    outerRadius={rpmRadius}
+                    startAngle={-Math.PI * 0.75}
+                    endAngle={rpmScale(rpm)}
+                    fill={rpm > 11500 ? "#a855f7" : rpm > 10500 ? "#ef4444" : "#22c55e"}
+                    cornerRadius={2}
+                    opacity={0.8}
+                />
 
                 {/* Ticks */}
                 {ticks.map((tick, i) => (
@@ -147,8 +227,8 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                         />
                         {tick.isMajor && (
                             <text
-                                x={Math.cos(speedScale(tick.value) - Math.PI / 2) * (radius - 20)}
-                                y={Math.sin(speedScale(tick.value) - Math.PI / 2) * (radius - 20)}
+                                x={Math.cos(speedScale(tick.value) - Math.PI / 2) * (radius + 20)}
+                                y={Math.sin(speedScale(tick.value) - Math.PI / 2) * (radius + 20)}
                                 fill="#64748b"
                                 fontSize={8}
                                 fontWeight={700}
@@ -162,16 +242,40 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                     </Group>
                 ))}
 
+                {/* --- REV LIGHTS (Bottom) --- */}
+                {/* Placed below the speed text/circle */}
+                <Group top={radius + 20}>
+                    <div style={{ display: 'flex', gap: '2px', justifyContent: 'center' }}>
+                    </div>
+                    {/* Thin Line Style */}
+                    <g transform="translate(-37, 0)">
+                        {ledData.map((led, i) => (
+                            <rect
+                                key={i}
+                                x={i * 5} // Tighter spacing (5px step)
+                                y={0}
+                                width={3} // Thinner width
+                                height={1.5} // Ultra thin height
+                                rx={0.5}
+                                fill={led.isOn ? led.color : '#1e293b'}
+                                style={{
+                                    filter: led.isOn ? `drop-shadow(0 0 4px ${led.color})` : 'none',
+                                    transition: 'fill 0.05s linear'
+                                }}
+                            />
+                        ))}
+                    </g>
+                </Group>
+
                 {/* --- GEAR CAROUSEL (Upper Center) --- */}
-                {/* Placed in the upper half, just above center */}
-                <Group top={-50}>
+                <Group top={-40}>
                     <svg x={-60} y={-30} width={120} height={60} style={{ overflow: 'visible' }}>
                         <mask id="gearMask">
                             <rect x={0} y={0} width={120} height={60} fill="url(#carouselMask)" />
                         </mask>
                         <g mask="url(#gearMask)">
                             {GEARS.map((g, i) => {
-                                const offset = (i - currentGearIndex) * 25; // Tighter spacing
+                                const offset = (i - currentGearIndex) * 25;
                                 const isActive = i === currentGearIndex;
                                 const dist = Math.abs(i - currentGearIndex);
 
@@ -181,14 +285,14 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                                         x={60 + offset}
                                         y={45}
                                         textAnchor="middle"
-                                        fill={isActive ? "#e2e8f0" : "#64748b"} // Muted active color (Slate 200)
+                                        fill={isActive ? "#e2e8f0" : "#64748b"}
                                         fontSize={isActive ? 32 : 14}
                                         fontWeight={isActive ? 900 : 700}
                                         fontFamily="Outfit"
                                         style={{
                                             opacity: isActive ? 1 : Math.max(0, 0.4 - dist * 0.2),
                                             transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                                            filter: isActive ? 'drop-shadow(0 0 8px rgba(226, 232, 240, 0.3))' : 'none' // Reduced glow
+                                            filter: isActive ? 'drop-shadow(0 0 8px rgba(226, 232, 240, 0.3))' : 'none'
                                         }}
                                     >
                                         {g}
@@ -200,9 +304,7 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                 </Group>
 
                 {/* --- TELEMETRY ARCS (Split Top) --- */}
-
-                {/* LEFT SIDE: THROTTLE (Green) */}
-                {/* Range: -0.75PI (Bottom Left) -> 0 (Top Center) */}
+                {/* LEFT SIDE: THROTTLE */}
                 <Arc
                     innerRadius={telemetryInner}
                     outerRadius={telemetryOuter}
@@ -215,15 +317,26 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                     innerRadius={telemetryInner}
                     outerRadius={telemetryOuter}
                     startAngle={-Math.PI * 0.75}
-                    // Fill UP from bottom (-0.75 PI) towards 0
-                    endAngle={-Math.PI * 0.75 + (Math.PI * 0.75 * (throttle / 100))}
+                    endAngle={-Math.PI * 0.75 + (Math.PI * 0.75 * (vizThrottle / 100))}
                     fill="url(#throttleGrad)"
                     cornerRadius={4}
                 />
-                <text x={-telemetryInner + 5} y={-10} fill="#22c55e" fontSize={9} fontWeight={800} fontFamily="Inter" textAnchor="end">THR</text>
+                <text
+                    x={Math.cos(145 * (Math.PI / 180)) * (telemetryInner + 7.5)}
+                    y={Math.sin(145 * (Math.PI / 180)) * (telemetryInner + 7.5)}
+                    transform={`rotate(55, ${Math.cos(145 * (Math.PI / 180)) * (telemetryInner + 7.5)}, ${Math.sin(145 * (Math.PI / 180)) * (telemetryInner + 7.5)})`}
+                    fill="#ffffff"
+                    fontSize={10}
+                    fontWeight={800}
+                    fontFamily="Inter"
+                    textAnchor="middle"
+                    alignmentBaseline="middle"
+                    style={{ textShadow: '0 0 2px rgba(0,0,0,0.5)' }}
+                >
+                    THR
+                </text>
 
-                {/* RIGHT SIDE: BRAKE (Red) */}
-                {/* Range: 0.75PI (Bottom Right) -> 0 (Top Center) */}
+                {/* RIGHT SIDE: BRAKE */}
                 <Arc
                     innerRadius={telemetryInner}
                     outerRadius={telemetryOuter}
@@ -236,12 +349,24 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                     innerRadius={telemetryInner}
                     outerRadius={telemetryOuter}
                     startAngle={Math.PI * 0.75}
-                    // Fill UP from bottom (0.75 PI) towards 0 (Decrease angle)
-                    endAngle={Math.PI * 0.75 - (Math.PI * 0.75 * (brake / 100))}
+                    endAngle={Math.PI * 0.75 - (Math.PI * 0.75 * (vizBrake / 100))}
                     fill="url(#brakeGrad)"
                     cornerRadius={4}
                 />
-                <text x={telemetryInner - 5} y={-10} fill="#ef4444" fontSize={9} fontWeight={800} fontFamily="Inter" textAnchor="start">BRK</text>
+                <text
+                    x={Math.cos(35 * (Math.PI / 180)) * (telemetryInner + 7.5)}
+                    y={Math.sin(35 * (Math.PI / 180)) * (telemetryInner + 7.5)}
+                    transform={`rotate(-55, ${Math.cos(35 * (Math.PI / 180)) * (telemetryInner + 7.5)}, ${Math.sin(35 * (Math.PI / 180)) * (telemetryInner + 7.5)})`}
+                    fill="#ffffff"
+                    fontSize={10}
+                    fontWeight={800}
+                    fontFamily="Inter"
+                    textAnchor="middle"
+                    alignmentBaseline="middle"
+                    style={{ textShadow: '0 0 2px rgba(0,0,0,0.5)' }}
+                >
+                    BRK
+                </text>
 
 
                 {/* Speed Needle */}
@@ -273,9 +398,23 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                     fontSize={10}
                     fontWeight={800}
                     letterSpacing="0.2em"
+                    fontFamily="Titillium Web"
                 >
                     KM/H
                 </text>
+
+                {/* RPM Label */}
+                <text
+                    y={radius + 35}
+                    textAnchor="middle"
+                    fill="#94a3b8"
+                    fontSize={10}
+                    fontWeight={700}
+                    fontFamily="JetBrains Mono"
+                >
+                    {Math.round(rpm)} RPM
+                </text>
+
             </Group>
         </svg>
     );

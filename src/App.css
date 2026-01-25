@@ -473,6 +473,10 @@ body {
   gap: 1rem;
 }
 
+.speed-cluster.focused .cluster-side {
+  opacity: 0.3;
+}
+
 /* Update hud-bottom-right to accommodate wider cluster */
 .hud-bottom-right {
   bottom: 2rem;

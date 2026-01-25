@@ -167,7 +167,7 @@ function App() {
 
         {/* Bottom Right: Speed Cluster */}
         <div className="hud-panel hud-bottom-right">
-          <div className={`speed-cluster ${!hasFocus ? 'inactive' : ''}`}>
+          <div className={`speed-cluster ${!hasFocus ? 'inactive' : 'focused'}`}>
             <div className="cluster-side left">
               <Compass size={108} />
             </div>
