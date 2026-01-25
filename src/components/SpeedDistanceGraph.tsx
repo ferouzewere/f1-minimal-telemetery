@@ -24,19 +24,27 @@ export const SpeedDistanceGraph: React.FC<SpeedGraphProps> = ({ width, height })
         const driver = raceData.drivers.find(d => d.driver_abbr === focusedDriver);
         if (!driver) return [];
 
-        // Get current lap to show relevant data portion
         const currentFrame = getInterpolatedFrame(driver.telemetry, currentTime);
         const currentLap = currentFrame.lap;
-
-        // Filter data for current lap only for clarity
         const safeTrackLength = trackLength > 0 ? trackLength : 1;
-        return driver.telemetry
-            .filter(t => Math.floor(t.dist / safeTrackLength) + 1 === currentLap)
+
+        // Filter and map data for the TRAIL (current driver, current lap, up to current time)
+        const trail = driver.telemetry
+            .filter(t => t.lap === currentLap && t.t <= currentTime)
             .map(t => ({
                 dist: t.dist % safeTrackLength,
                 speed: t.speed || 0
             }))
             .filter(t => !isNaN(t.dist) && !isNaN(t.speed));
+
+        // Sort to ensure valid path
+        trail.sort((a, b) => a.dist - b.dist);
+
+        // Append the exact current position for a perfectly smooth connection
+        const currentDist = (currentFrame.dist % safeTrackLength) || 0;
+        trail.push({ dist: currentDist, speed: currentFrame.speed || 0 });
+
+        return trail;
     }, [raceData, focusedDriver, currentTime, trackLength]);
 
     // Scales

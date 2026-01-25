@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { MissionManager } from './MissionManager';
 import { useRaceStore } from '../store/useRaceStore';
 import type { CircuitMetadata } from '../store/useRaceStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,6 +11,17 @@ interface Session {
     name: string;
     description: string;
     file: string;
+    metadata?: {
+        winner?: {
+            name: string;
+            team: string;
+            color: string;
+        };
+        weather?: {
+            temp: number;
+            condition: string;
+        };
+    };
 }
 
 interface Circuit {
@@ -17,6 +29,7 @@ interface Circuit {
     name: string;
     location: string;
     lapLength: number;
+    track_path?: string; // Added track_path
     sectors: {
         s1_end: number;
         s2_end: number;
@@ -36,16 +49,25 @@ interface SessionSelectorProps {
 export const SessionSelector: React.FC<SessionSelectorProps> = ({ isOpen, setIsOpen }) => {
     const [manifest, setManifest] = useState<Manifest | null>(null);
     const [loading, setLoading] = useState(false);
+    const [view, setView] = useState<'selection' | 'management'>('selection');
     const loadRaceData = useRaceStore(state => state.loadRaceData);
     const currentCircuit = useRaceStore(state => state.circuitMetadata);
     const raceData = useRaceStore(state => state.raceData);
 
     useEffect(() => {
-        fetch('/sessions.json')
+        if (isOpen) {
+            fetch('/sessions.json')
+                .then(res => res.json())
+                .then(setManifest)
+                .catch(err => console.error("Failed to load sessions:", err));
+        }
+    }, [isOpen]);
+
+    const refreshManifest = () => {
+        fetch(`/sessions.json?t=${Date.now()}`)
             .then(res => res.json())
-            .then(setManifest)
-            .catch(err => console.error("Failed to load sessions:", err));
-    }, []);
+            .then(setManifest);
+    };
 
     const handleSelectSession = async (circuit: Circuit, session: Session) => {
         setLoading(true);
@@ -95,6 +117,30 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({ isOpen, setIsO
                                     <h2>RACE COMMAND CENTER</h2>
                                     <span className="subtitle">SELECT MISSION PROFILE</span>
                                 </div>
+                                <div className="mgmt-toggle">
+                                    <button
+                                        className={`mode-btn ${view === 'selection' ? 'active' : ''}`}
+                                        onClick={() => setView('selection')}
+                                    >
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                            <rect x="3" y="3" width="7" height="7"></rect>
+                                            <rect x="14" y="3" width="7" height="7"></rect>
+                                            <rect x="14" y="14" width="7" height="7"></rect>
+                                            <rect x="3" y="14" width="7" height="7"></rect>
+                                        </svg>
+                                        MISSION PROFILES
+                                    </button>
+                                    <button
+                                        className={`mode-btn ${view === 'management' ? 'active' : ''}`}
+                                        onClick={() => setView('management')}
+                                    >
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                                        </svg>
+                                        SYSTEM MGMT
+                                    </button>
+                                </div>
                                 <button className="close-btn" onClick={() => setIsOpen(false)}>
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                         <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -109,6 +155,12 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({ isOpen, setIsO
                                         <div className="telemetry-pulse-icon" />
                                         <span className="loading-text">RECONFIGURING DATA STREAM...</span>
                                     </div>
+                                ) : view === 'management' ? (
+                                    <MissionManager
+                                        onClose={() => setView('selection')}
+                                        currentSessions={manifest?.circuits || []}
+                                        onRefresh={refreshManifest}
+                                    />
                                 ) : (
                                     <div className="circuit-grid">
                                         {manifest?.circuits.map(circuit => (
@@ -119,7 +171,11 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({ isOpen, setIsO
                                                     <span className="location">{circuit.location}</span>
                                                 </div>
 
-                                                <CircuitOutline circuitId={circuit.id} className="circuit-outline-icon" />
+                                                <CircuitOutline
+                                                    circuitId={circuit.id}
+                                                    dynamicPath={circuit.track_path}
+                                                    className="circuit-outline-icon"
+                                                />
 
                                                 <div className="card-stats">
                                                     <div className="stat">
@@ -143,7 +199,21 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({ isOpen, setIsO
                                                                 className={`session-btn ${isActive ? 'active' : ''}`}
                                                                 onClick={() => handleSelectSession(circuit, session)}
                                                             >
-                                                                <span className="session-name">{session.name}</span>
+                                                                <div className="session-main">
+                                                                    <span className="session-name">{session.name}</span>
+                                                                    {session.metadata?.winner && (
+                                                                        <div className="session-details">
+                                                                            <span className="winner-tag" style={{ borderLeft: `2px solid ${session.metadata.winner.color}` }}>
+                                                                                WINNER: {session.metadata.winner.name}
+                                                                            </span>
+                                                                            {session.metadata.weather && (
+                                                                                <span className="weather-tag">
+                                                                                    {session.metadata.weather.condition} • {session.metadata.weather.temp}°C
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                                 {isActive ? (
                                                                     <div className="active-tag">ACTIVE</div>
                                                                 ) : (

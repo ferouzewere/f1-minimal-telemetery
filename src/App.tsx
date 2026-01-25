@@ -125,9 +125,7 @@ function App() {
 
         {/* Top Right: Leaderboard */}
         <aside className="hud-panel hud-top-right">
-          <div className="driver-table-container">
-            <DriverTable />
-          </div>
+          <DriverTable />
         </aside>
 
         {/* Middle Left: Pulse Chart Only */}

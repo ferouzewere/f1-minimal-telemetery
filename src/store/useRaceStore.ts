@@ -5,6 +5,7 @@ export interface TelemetryFrame {
   lap: number;
   dist: number;
   speed: number;
+  rpm: number; // Added RPM
   gear: number;
   throttle: number;
   brake: number;
@@ -29,15 +30,34 @@ export interface DriverData {
   driver_abbr: string;
   driver_name: string;
   team: string;
+  team_color?: string; // Added Team Color
   stints: Stint[];
   lapTimes: Record<number, number>; // lap number -> lap time in ms
   telemetry: TelemetryFrame[];
+}
+
+export interface WeatherFrame {
+  t: number;
+  air_temp: number;
+  track_temp: number;
+  humidity: number;
+  rainfall: boolean;
+  wind_speed: number;
+  wind_direction: number;
+}
+
+export interface TrackStatusFrame {
+  t: number;
+  status: string;
+  message?: string;
 }
 
 interface RaceData {
   race_name: string;
   year: number;
   circuit: string;
+  weather?: WeatherFrame[];
+  track_status?: TrackStatusFrame[];
   drivers: DriverData[];
 }
 
@@ -77,6 +97,8 @@ interface RaceState {
   totalLaps: number;
   pitStops: PitStop[];
   sessionBestLap: number; // Lowest lap time in ms
+  currentWeather: WeatherFrame | null;
+  currentTrackStatus: TrackStatusFrame | null;
 
   // Actions
   loadRaceData: (data: RaceData, metadata?: CircuitMetadata) => void;
@@ -102,6 +124,8 @@ export const useRaceStore = create<RaceState>((set) => ({
   totalLaps: 0,
   pitStops: [],
   sessionBestLap: Infinity,
+  currentWeather: null,
+  currentTrackStatus: null,
 
   loadRaceData: (data, metadata) => {
     if (!data || !data.drivers || data.drivers.length === 0) return;
@@ -200,7 +224,28 @@ export const useRaceStore = create<RaceState>((set) => ({
     });
   },
 
-  setCurrentTime: (time) => set({ currentTime: time }),
+  setCurrentTime: (time) => {
+    set((state) => {
+      // Find current weather and track status
+      let weather = state.currentWeather;
+      if (state.raceData?.weather) {
+        weather = state.raceData.weather.reduce((prev, curr) =>
+          (curr.t <= time && curr.t > (prev?.t || -1)) ? curr : prev, null as WeatherFrame | null);
+      }
+
+      let status = state.currentTrackStatus;
+      if (state.raceData?.track_status) {
+        status = state.raceData.track_status.reduce((prev, curr) =>
+          (curr.t <= time && curr.t > (prev?.t || -1)) ? curr : prev, null as TrackStatusFrame | null);
+      }
+
+      return {
+        currentTime: time,
+        currentWeather: weather,
+        currentTrackStatus: status
+      };
+    });
+  },
   setPlaySpeed: (speed) => set({ playSpeed: speed }),
   togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),
   seekTo: (time) => set({ currentTime: time }),

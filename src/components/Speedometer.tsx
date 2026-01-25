@@ -38,40 +38,17 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
     const GEARS = ['R', 'N', '1', '2', '3', '4', '5', '6', '7', '8'];
     const currentGearIndex = GEARS.indexOf(String(gear)) !== -1 ? GEARS.indexOf(String(gear)) : (gear === 0 ? 1 : 1);
 
-    // --- RPM SIMULATION LOGIC ---
-    // Theoretical Max Speeds per Gear (Approximate 2024 F1 Specs)
-    const MAX_SPEEDS = [
-        360, // R (Ignored mostly)
-        360, // N
-        130, // 1st
-        170, // 2nd
-        210, // 3rd
-        250, // 4th
-        290, // 5th
-        325, // 6th
-        360, // 7th
-        395  // 8th
-    ];
+    // --- RPM DATA ---
     const MAX_RPM = 12500;
     const IDLE_RPM = 4000;
+    let rpm = currentFrame?.rpm || IDLE_RPM;
 
-    // Calculate RPM
-    let rpm = IDLE_RPM;
-    if (gear > 0) { // Moving in Gear
+    // Fallback simulation if data is older or missing RPM (though our script now provides it)
+    if (!currentFrame?.rpm && gear > 0) {
+        const MAX_SPEEDS = [360, 360, 130, 170, 210, 250, 290, 325, 360, 395];
         const gearMaxSpeed = MAX_SPEEDS[gear + 1] || 360;
-
-        // Simple linear map for now: 0 -> MaxSpeed maps to 0 -> MaxRPM? No.
-        // RPM = (Speed / MaxGearSpeed) * PeakRPM.
-        // But we need to account for power band.
-        // Let's simplified linear ratio:
-        rpm = (speed / gearMaxSpeed) * MAX_RPM;
-        // Clamp to min/max
-        rpm = Math.max(IDLE_RPM, Math.min(MAX_RPM, rpm));
-
-        // Add "Noise" or variation based on throttle if clutch is engaged? 
-        // No, in gear, RPM is locked to wheel speed.
-    } else { // Neutral or Reverse
-        // Rev based on throttle input
+        rpm = Math.max(IDLE_RPM, Math.min(MAX_RPM, (speed / gearMaxSpeed) * MAX_RPM));
+    } else if (!currentFrame?.rpm) {
         rpm = IDLE_RPM + ((throttle / 100) * (MAX_RPM - IDLE_RPM));
     }
 

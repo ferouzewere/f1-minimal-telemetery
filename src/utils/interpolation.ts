@@ -26,6 +26,7 @@ export const interpolateFrames = (
         lap: f0.lap, // Lap doesn't interpolate
         dist: lerp(f0.dist, f1.dist, t),
         speed: Math.round(lerp(f0.speed, f1.speed, t)),
+        rpm: Math.round(lerp(f0.rpm, f1.rpm, t)), // Added RPM
         gear: t < 0.5 ? f0.gear : f1.gear, // Discontinuous values use nearest
         throttle: Math.round(lerp(f0.throttle, f1.throttle, t)),
         brake: Math.round(lerp(f0.brake, f1.brake, t)),

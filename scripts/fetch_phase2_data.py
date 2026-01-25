@@ -15,46 +15,68 @@ fastf1.Cache.enable_cache('cache')
 def fetch_full_race_data(year, race_name, driver_list):
     """
     Fetch full race data for multiple drivers including all laps and strategy.
-    
-    Args:
-        year: Race year
-        race_name: Race name
-        driver_list: List of driver abbreviations
     """
     print(f"Loading {year} {race_name} GP Full Race Data...")
     
     session = fastf1.get_session(year, race_name, 'R')
-    session.load(telemetry=True, laps=True, weather=False)
+    session.load(telemetry=True, laps=True, weather=True) # Enabled weather
     
+    # Fetch Weather Data
+    weather_data = []
+    try:
+        weather = session.weather_data
+        for _, row in weather.iterrows():
+            weather_data.append({
+                't': int(row['Time'].total_seconds() * 1000),
+                'air_temp': float(row['AirTemp']),
+                'track_temp': float(row['TrackTemp']),
+                'humidity': float(row['Humidity']),
+                'rainfall': bool(row['Rainfall']),
+                'wind_speed': float(row['WindSpeed']),
+                'wind_direction': int(row['WindDirection'])
+            })
+    except Exception as e:
+        print(f"  ⚠️ Could not fetch weather: {e}")
+
+    # Fetch Track Status (Safety Car, Flags)
+    track_status_data = []
+    try:
+        ts = session.track_status
+        for _, row in ts.iterrows():
+            track_status_data.append({
+                't': int(row['Time'].total_seconds() * 1000),
+                'status': str(row['Status']),
+                'message': str(row['Message']) if 'Message' in row else ""
+            })
+    except Exception as e:
+        print(f"  ⚠️ Could not fetch track status: {e}")
+
     all_drivers_data = []
-    
-    # Get all race laps for the session
     laps = session.laps
     
     for driver_abbr in driver_list:
         print(f"\nProcessing driver: {driver_abbr}")
-        
         driver_laps = laps.pick_drivers([driver_abbr])
         
         if driver_laps.empty:
-            print(f"  ⚠️  No data for {driver_abbr}")
             continue
             
-        # Get driver result info
         try:
             results = session.results
             driver_result = results[results['Abbreviation'] == driver_abbr]
             if not driver_result.empty:
                 driver_name = f"{driver_result.iloc[0]['FirstName']} {driver_result.iloc[0]['LastName']}"
                 team = driver_result.iloc[0]['TeamName']
+                color = driver_result.iloc[0]['TeamColor']
             else:
                 driver_name = driver_abbr
                 team = 'Unknown'
+                color = 'FFFFFF'
         except:
             driver_name = driver_abbr
             team = 'Unknown'
+            color = 'FFFFFF'
 
-        # Get Tyre Stints by grouping laps
         stints = []
         stint_groups = driver_laps.groupby('Stint')
         for stint_num, stint_laps in stint_groups:
@@ -65,25 +87,24 @@ def fetch_full_race_data(year, race_name, driver_list):
                 'count': len(stint_laps)
             })
 
-        # Get Telemetry for first 3 laps per driver
-        sample_laps = driver_laps.iloc[0:3] 
-        
+        # Process telemetry (All laps for better visualization)
         telemetry_data = []
         total_dist_so_far = 0
+        
+        # Limit to 10 laps for "full race" sample to keep file size reasonable for now
+        # or process all if you want truly full data. 
+        # For this 'Phase 2' sample, let's do more than 3.
+        sample_laps = driver_laps.iloc[0:10] 
         
         for _, lap in sample_laps.iterrows():
             try:
                 lap_telemetry = lap.get_telemetry()
                 pos = lap.get_pos_data()
                 
-                # Check for pit stops (LapTime or pit entry)
                 is_pit_stop = pd.notna(lap['PitInTime']) or pd.notna(lap['PitOutTime'])
-                
-                # We need to accumulate distance across laps if we want a "full race" view
                 lap_max_dist = lap_telemetry['Distance'].max()
                 
                 for idx, row in lap_telemetry.iterrows():
-                    # Approximate position
                     time_delta = (pos['Time'] - row['Time']).abs()
                     closest_idx = time_delta.idxmin() if not time_delta.empty else None
                     
@@ -98,6 +119,7 @@ def fetch_full_race_data(year, race_name, driver_list):
                         'lap': int(lap['LapNumber']),
                         'dist': float(row['Distance']) + total_dist_so_far,
                         'speed': int(row['Speed']),
+                        'rpm': int(row['RPM']) if 'RPM' in row else 0, # Added RPM
                         'gear': int(row['nGear']),
                         'throttle': int(row['Throttle']),
                         'brake': int(row['Brake']),
@@ -118,17 +140,20 @@ def fetch_full_race_data(year, race_name, driver_list):
             'driver_abbr': driver_abbr,
             'driver_name': driver_name,
             'team': team,
+            'team_color': f"#{color}",
             'stints': stints,
             'telemetry': telemetry_data
         }
         
         all_drivers_data.append(driver_data)
-        print(f"  ✅ {driver_abbr}: {len(telemetry_data)} samples over {len(sample_laps)} laps")
+        print(f"  ✅ {driver_abbr}: {len(telemetry_data)} samples")
 
     race_data = {
-        'race_name': f"{year} {race_name} Grand Prix (Phase 2 Sample)",
+        'race_name': f"{year} {race_name} Grand Prix (Phase 2 Full)",
         'year': year,
         'circuit': race_name,
+        'weather': weather_data,
+        'track_status': track_status_data,
         'drivers': all_drivers_data
     }
     

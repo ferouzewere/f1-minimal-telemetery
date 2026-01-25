@@ -86,11 +86,9 @@ body {
 .hud-top-right {
   top: 1.5rem;
   right: 1.5rem;
-  bottom: 30%;
-  /* Leave space for speedometer */
-  width: 540px;
-  /* Increased from 420px to fit all columns */
-  max-width: 40vw;
+  width: 580px;
+  /* Width increased for better column spacing */
+  max-width: 45vw;
   display: flex;
   flex-direction: column;
 }
