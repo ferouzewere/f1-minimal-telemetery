@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ParentSize } from '@visx/responsive'
 
@@ -13,6 +13,7 @@ import { PlaybackControls } from './components/PlaybackControls'
 import { SessionSelector } from './components/SessionSelector'
 import { Compass } from './components/Compass'
 import { VehicleStatus } from './components/VehicleStatus'
+import { getInterpolatedFrame } from './utils/interpolation'
 
 import { useRaceStore, type DriverData } from './store/useRaceStore'
 import './styles/Copyright.css'
@@ -25,9 +26,32 @@ function App() {
   const isPlaying = useRaceStore(state => state.isPlaying)
   const setIsPlaying = useRaceStore(state => state.setIsPlaying)
   const setCurrentTime = useRaceStore(state => state.setCurrentTime)
+  const currentTime = useRaceStore(state => state.currentTime)
+  const totalLaps = useRaceStore(state => state.totalLaps)
   const circuitMetadata = useRaceStore(state => state.circuitMetadata)
 
   const [isNavOpen, setIsNavOpen] = useState(false)
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1920)
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  const isMobile = windowWidth <= 640
+  // Initial state based on focus
+  const [activeHudSlide, setActiveHudSlide] = useState<'gauges' | 'pulse'>(focusedDriver ? 'gauges' : 'pulse')
+
+  // Sync Carousel with Focus Mode Transitions
+  const lastFocusRef = useRef(!!focusedDriver);
+  useEffect(() => {
+    const hasFocusNow = !!focusedDriver;
+    if (hasFocusNow !== lastFocusRef.current) {
+      setActiveHudSlide(hasFocusNow ? 'gauges' : 'pulse');
+      lastFocusRef.current = hasFocusNow;
+    }
+  }, [focusedDriver]);
 
   // Initial Load from Manifest
   useEffect(() => {
@@ -95,16 +119,16 @@ function App() {
       {/* LAYER 0: Full Screen Ambient Map */}
       <div className="track-background-layer">
         <ParentSize>
-          {({ width, height }) => <TrackMap width={width} height={height} />}
+          {({ width, height }) => <TrackMap width={width} height={height} verticalOffset={isMobile ? 120 : 0} />}
         </ParentSize>
       </div>
 
       {/* LAYER 1: HUD Grid Overlay */}
       <div className="hud-overlay-layer">
 
-        {/* Top Left: Mission Control Header */}
-        <header className="hud-panel hud-top-left">
-          <div className="hub-capsule" onClick={() => setIsNavOpen(!isNavOpen)}>
+        {/* Top Center: Mission Control Header (Redesigned Pill) */}
+        <header className="hud-panel hud-top-center-pill">
+          <div className="hub-capsule transparent-pill" onClick={() => setIsNavOpen(!isNavOpen)}>
             <div className="hub-title">
               <h1>{raceData?.race_name || 'F1 MONITOR'}</h1>
               <span>{circuitMetadata?.name || 'TRACK MONITOR'}</span>
@@ -119,8 +143,6 @@ function App() {
               </svg>
             </motion.div>
           </div>
-
-          <SessionSelector isOpen={isNavOpen} setIsOpen={setIsNavOpen} />
         </header>
 
         {/* Top Right: Leaderboard */}
@@ -128,66 +150,159 @@ function App() {
           <DriverTable />
         </aside>
 
-        {/* Middle Left: Pulse Chart Only */}
-        <div className="hud-panel hud-bottom-left">
-          <div className="telemetry-hud-container">
-            <AnimatePresence mode="wait">
-              {hasFocus ? (
-                <motion.div
-                  key="focus"
-                  className="focus-intelligence-view"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <ParentSize>
-                    {({ width, height }) => <SpeedDistanceGraph width={width} height={height} />}
-                  </ParentSize>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="global"
-                  className="global-intelligence-view"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <ParentSize>
-                    {({ width, height }) => <GlobalMultiGraph width={width} height={height} />}
-                  </ParentSize>
-                </motion.div>
+        {/* Mobile Carousel HUD (Visible only on mobile) */}
+        {isMobile && (
+          <>
+            <div className={`hud-panel hud-bottom-right hud-carousel-container ${!hasFocus ? 'inactive' : ''}`}>
+              {/* SIDE ARROWS (Visible only in focused mode) */}
+              {hasFocus && (
+                <>
+                  <button
+                    className="carousel-arrow left"
+                    onClick={() => setActiveHudSlide(activeHudSlide === 'gauges' ? 'pulse' : 'gauges')}
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                  </button>
+
+                  <button
+                    className="carousel-arrow right"
+                    onClick={() => setActiveHudSlide(activeHudSlide === 'pulse' ? 'gauges' : 'pulse')}
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                  </button>
+                </>
               )}
-            </AnimatePresence>
-          </div>
-        </div>
 
-        {/* Bottom Right: Speed Cluster */}
-        <div className="hud-panel hud-bottom-right">
-          <div className={`speed-cluster ${!hasFocus ? 'inactive' : 'focused'}`}>
-            <div className="cluster-side left">
-              <Compass size={108} />
+              <AnimatePresence mode="wait">
+                {activeHudSlide === 'gauges' ? (
+                  <motion.div
+                    key="gauges"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: hasFocus ? 1 : 0.01, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className={`speed-cluster ${!hasFocus ? 'inactive' : 'focused'}`}
+                    style={{ background: 'transparent' }}
+                  >
+                    <div className="cluster-side left">
+                      <Compass size={70} />
+                    </div>
+                    <div className="cluster-center">
+                      <Speedometer width={180} height={180} />
+                    </div>
+                    <div className="cluster-side right">
+                      <VehicleStatus size={70} />
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="pulse"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="pulse-carousel-slide"
+                    style={{ width: '100%', height: '200px' }}
+                  >
+                    <ParentSize>
+                      {({ width, height }) => (
+                        focusedDriver ?
+                          <SpeedDistanceGraph width={width} height={height} /> :
+                          <GlobalMultiGraph width={width} height={height} />
+                      )}
+                    </ParentSize>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-            <div className="cluster-center">
-              <Speedometer width={280} height={280} />
-            </div>
-            <div className="cluster-side right">
-              <VehicleStatus size={108} />
-            </div>
-          </div>
-        </div>
 
-        {/* Bottom Center: Minimal Controls Pill */}
-        <div className="hud-panel hud-bottom-center">
-          <PlaybackControls />
-        </div>
+            {/* VERTICAL RIGHT-SIDE CONTROLS (MOBILE ONLY) */}
+            <div className="hud-right-controls">
+              <div className="race-status-clock mobile-stack-clock">
+                <span className="lap-indicator">L{raceData?.drivers[0] ? getInterpolatedFrame(raceData.drivers[0].telemetry, currentTime).lap : 1}/{totalLaps || '-'}</span>
+                <span className="time-separator">/</span>
+                <span className="elapsed-time">{
+                  (() => {
+                    const totalSeconds = currentTime / 1000;
+                    const minutes = Math.floor(totalSeconds / 60);
+                    const seconds = (totalSeconds % 60).toFixed(1);
+                    return `${minutes}:${seconds.padStart(4, '0')}`;
+                  })()
+                }</span>
+              </div>
+              <PlaybackControls isVertical />
+            </div>
+          </>
+        )}
+
+        {/* Desktop/Tablet HUD (Hidden on mobile) */}
+        {!isMobile && (
+          <>
+            {/* Middle Left: Pulse Chart Only */}
+            <div className="hud-panel hud-bottom-left">
+              <div className="telemetry-hud-container">
+                <AnimatePresence mode="wait">
+                  {hasFocus ? (
+                    <motion.div
+                      key="focus"
+                      className="focus-intelligence-view"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <ParentSize>
+                        {({ width, height }) => <SpeedDistanceGraph width={width} height={height} />}
+                      </ParentSize>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="global"
+                      className="global-intelligence-view"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <ParentSize>
+                        {({ width, height }) => <GlobalMultiGraph width={width} height={height} />}
+                      </ParentSize>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* Bottom Right: Speed Cluster */}
+            <div className={`hud-panel hud-bottom-right ${!hasFocus ? 'inactive' : ''}`}>
+              <div className={`speed-cluster ${!hasFocus ? 'inactive' : 'focused'}`}>
+                <div className="cluster-side left">
+                  <Compass size={108} />
+                </div>
+                <div className="cluster-center">
+                  <Speedometer width={280} height={280} />
+                </div>
+                <div className="cluster-side right">
+                  <VehicleStatus size={108} />
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Center: Minimal Controls Pill */}
+            <div className="hud-panel hud-bottom-center">
+              <PlaybackControls />
+            </div>
+          </>
+        )}
 
         {/* Copyright Footer */}
         <div className="copyright-footer">
           DEVELOPED BY FEROUZE
         </div>
 
+        <SessionSelector isOpen={isNavOpen} setIsOpen={setIsNavOpen} />
       </div>
     </div>
   )

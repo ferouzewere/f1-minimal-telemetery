@@ -1,0 +1,489 @@
+﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700;800&family=Outfit:wght@400;700;800&family=Titillium+Web:wght@400;600;700;900&family=Rajdhani:wght@500;600;700&display=swap');
+
+:root {
+  --bg-color: #020617;
+  --panel-bg: rgba(15, 23, 42, 0.4);
+  --glass-panel: rgba(15, 23, 42, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --divider: linear-gradient(90deg, transparent 0%, rgba(30, 41, 59, 0.8) 50%, transparent 100%);
+  --divider-v: linear-gradient(180deg, transparent 0%, rgba(30, 41, 59, 0.8) 50%, transparent 100%);
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --accent: #3b82f6;
+  --accent-glow: rgba(59, 130, 246, 0.3);
+  --error: #ef4444;
+  --throttle: #22c55e;
+  --brake: #ef4444;
+  --soft: #ef4444;
+  --medium: #facc15;
+  --hard: #f8fafc;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* --- MAIN LAYOUT ARCHITECTURE --- */
+
+.cockpit-view {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-color);
+}
+
+/* Full Screen Background Map */
+.track-background-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /* Cinematic fade at edges */
+  mask-image: radial-gradient(circle at center, black 60%, transparent 120%);
+}
+
+/* Overlay Container for HUD Elements */
+.hud-overlay-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  /* Allow clicks to pass through to map where no HUD */
+  padding: 1.5rem;
+}
+
+/* Enable pointer events on actual HUD panels */
+.hud-panel {
+  pointer-events: auto;
+  position: absolute;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --- HUD POSITIONS --- */
+
+/* Top Center: Compass & Header */
+.hud-top-center {
+  top: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  z-index: 50;
+}
+
+/* Top Right: Leaderboard */
+.hud-top-right {
+  top: 1.5rem;
+  right: 1.5rem;
+  width: 580px;
+  /* Width increased for better column spacing */
+  max-width: 45vw;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Bottom Left: Telemetry & Graphs */
+.hud-bottom-left {
+  bottom: 2rem;
+  left: 2rem;
+  width: 500px;
+  height: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.focus-intelligence-view,
+.global-intelligence-view {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  /* Match container */
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  /* DNA for ParentSize */
+  overflow: visible;
+}
+
+/* Bottom Right: Speedometer & Car Data */
+.hud-bottom-right {
+  bottom: 2rem;
+  right: 2rem;
+  width: 300px;
+  height: 300px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+}
+
+/* Bottom Center: Controls */
+.hud-bottom-center {
+  bottom: 2.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+}
+
+/* Top Left: Session Info (Future Expansion) */
+.hud-top-left {
+  top: 1.5rem;
+  left: 1.5rem;
+}
+
+/* --- COMPONENT STYLES --- */
+
+/* Glassmorphism Panels with Blending */
+.glass-panel {
+  background: rgba(15, 23, 42, 0.45);
+  /* More transparent */
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  /* Subtler border */
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  border-radius: 16px;
+  overflow: hidden;
+  /* Soft fade at bottom edge */
+  mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+}
+
+/* Simplified Header for HUD */
+.hub-capsule {
+  background: rgba(10, 15, 30, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  /* More subtle */
+  border-radius: 99px;
+  padding: 0.6rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.hub-capsule:hover {
+  transform: translateY(2px);
+  border-color: var(--accent);
+  background: rgba(15, 23, 42, 0.85);
+}
+
+.hub-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+
+.hub-title h1 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  /* Legibility over map */
+  text-transform: uppercase;
+}
+
+.hub-title span {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* Pulse Chart Container Adjustment */
+.telemetry-hud-container {
+  width: 100%;
+  height: 240px;
+  min-height: 240px;
+  /* Force minimum height */
+  background: transparent;
+  position: relative;
+  /* Ensure positioning context */
+  display: flex;
+  /* Ensure children fill */
+  flex-direction: column;
+}
+
+/* Minimal Playback Pill */
+.minimal-playback-pill {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(10, 15, 30, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 99px;
+  padding: 4px 12px;
+  width: fit-content;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.pill-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pill-section.stats {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  padding-right: 0.75rem;
+}
+
+.pill-section.progress {
+  position: relative;
+  width: 120px;
+  height: 4px;
+}
+
+.pill-progress-track {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.pill-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.pill-scrubber {
+  position: absolute;
+  top: -10px;
+  left: 0;
+  width: 100%;
+  height: 24px;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.pill-btn {
+  background: transparent;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+}
+
+.pill-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.pill-btn.play.playing {
+  color: var(--accent);
+}
+
+.pill-section.speeds {
+  display: flex;
+  gap: 4px;
+}
+
+.pill-speed {
+  background: rgba(255, 255, 255, 0.03);
+  border: none;
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.pill-speed.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.pill-speed:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* UTILITY CLASSES */
+.text-accent {
+  color: var(--accent);
+}
+
+.text-muted {
+  color: var(--text-secondary);
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Existing component styles preserved below */
+
+.active-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--accent);
+}
+
+/* Driver Row Enhancements */
+.driver-row {
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.driver-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.driver-row.focused {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.15) 0%, transparent 100%);
+  border-left: 3px solid var(--accent);
+}
+
+/* Sector Indicators */
+.sector-indicator {
+  font-size: 0.55rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: rgba(30, 41, 59, 0.5);
+  color: var(--text-secondary);
+}
+
+.sector-indicator.s1 {
+  color: #facc15;
+  border: 1px solid rgba(250, 204, 21, 0.2);
+}
+
+.sector-indicator.s2 {
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.sector-indicator.s3 {
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.sector-indicator.purple {
+  background: #a855f7;
+  color: white;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
+}
+
+/* Tyre Dots */
+.tyre-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+}
+
+.tyre-dot.soft {
+  color: var(--soft);
+}
+
+.tyre-dot.medium {
+  color: var(--medium);
+}
+
+.tyre-dot.hard {
+  color: var(--hard);
+}
+
+/* Speedometer specific */
+.speed-card {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* --- SPEED CLUSTER REDESIGN --- */
+
+.speed-cluster {
+  display: flex;
+  align-items: flex-end;
+  /* Align all to bottom baseline */
+  justify-content: center;
+  gap: 1.5rem;
+  /* Space between components */
+  width: auto;
+  position: relative;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.speed-cluster.inactive {
+  opacity: 0.15;
+  filter: grayscale(0.8) blur(0.5px);
+  pointer-events: none;
+}
+
+.cluster-center {
+  z-index: 10;
+  /* Ensure Speedometer is center stage */
+  filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.2));
+}
+
+.cluster-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: 1rem;
+  /* Lift slightly from bottom to match visual weight */
+  opacity: 0.9;
+  transition: all 0.3s ease;
+}
+
+.cluster-side.left {
+  /* Compass Side */
+  align-items: flex-end;
+}
+
+.cluster-side.right {
+  /* Gauges Side - Side by Side */
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+.speed-cluster.focused .cluster-side {
+  opacity: 0.3;
+}
+
+/* Update hud-bottom-right to accommodate wider cluster */
+.hud-bottom-right {
+  bottom: 2rem;
+  right: 2rem;
+  width: auto;
+  /* Allow growth */
+  height: auto;
+  min-width: 500px;
+  /* Ensure enough space */
+  justify-content: flex-end;
+  /* Align right */
+}

@@ -69,8 +69,7 @@ export const VehicleStatus: React.FC<VehicleStatusProps> = ({ size }) => {
                     outerRadius={radius}
                     startAngle={0}
                     endAngle={Math.PI * 2}
-                    fill="#1e293b"
-                    opacity={0.3}
+                    fill="transparent"
                     cornerRadius={2}
                 />
                 <Arc

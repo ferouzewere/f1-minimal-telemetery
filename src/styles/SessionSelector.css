@@ -1,4 +1,4 @@
-/* Session Selector - Premium Race Command Center UI */
+﻿/* Session Selector - Premium Race Command Center UI */
 .session-selector-overlay {
     position: fixed;
     inset: 0;
@@ -727,4 +727,48 @@
     background: rgba(255, 255, 255, 0.05);
     padding: 2px 6px;
     border-radius: 4px;
+}
+
+
+
+@media (max-width: 1024px) {
+    .admin-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        height: auto;
+    }
+
+    .selector-content {
+        padding: 1rem;
+    }
+
+    .circuit-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .race-command-center {
+        width: 100vw;
+        height: 100vh;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+
+    .selector-header {
+        padding: 1rem 1.5rem;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .mgmt-toggle {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .mode-btn {
+        flex: 1;
+        justify-content: center;
+        padding: 0.5rem;
+        font-size: 0.6rem;
+    }
 }

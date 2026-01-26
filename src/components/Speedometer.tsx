@@ -78,16 +78,15 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
 
 
     const radius = Math.min(width, height) / 2 - 25;
-    const innerRadius = radius * 0.85;
+    const innerRadius = radius * 0.9;
     // Thicker telemetry ring
-    // Thicker telemetry ring
-    const telemetryThickness = 15;
-    const telemetryOuter = radius * 0.70;
+    const telemetryThickness = 12;
+    const telemetryOuter = radius * 0.75;
     const telemetryInner = telemetryOuter - telemetryThickness;
 
     // RPM Gauge Radius (Inside speed)
-    const rpmRadius = innerRadius - 15;
-    const rpmInner = rpmRadius - 2;
+    const rpmRadius = innerRadius - 10;
+    const rpmInner = rpmRadius - 1.5;
 
     const speedScale = useMemo(() =>
         scaleLinear({
@@ -111,12 +110,12 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
             const mathAngle = visXAngle - Math.PI / 2;
 
             const isMajor = i % 40 === 0;
-            const length = isMajor ? 8 : 4;
+            const length = isMajor ? 6 : 3;
             tickData.push({
-                x1: Math.cos(mathAngle) * (radius - 2),
-                y1: Math.sin(mathAngle) * (radius - 2),
-                x2: Math.cos(mathAngle) * (radius - 2 - length),
-                y2: Math.sin(mathAngle) * (radius - 2 - length),
+                x1: Math.cos(mathAngle) * (radius - 1),
+                y1: Math.sin(mathAngle) * (radius - 1),
+                x2: Math.cos(mathAngle) * (radius - 1 - length),
+                y2: Math.sin(mathAngle) * (radius - 1 - length),
                 value: i,
                 isMajor
             });
@@ -193,6 +192,15 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                     <stop offset="0%" stopColor={brakeColor} stopOpacity={0.8} />
                     <stop offset="100%" stopColor={brakeColor} stopOpacity={1} />
                 </linearGradient>
+
+                {/* Frosty Blue Glass Effect Filter */}
+                <filter id="glassEffect">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="1" result="blur" />
+                    <feComponentTransfer in="blur" result="glass">
+                        <feFuncA type="linear" slope="0.8" />
+                    </feComponentTransfer>
+                    <feComposite in="SourceGraphic" in2="glass" operator="over" />
+                </filter>
             </defs>
 
             <Group top={height / 2} left={width / 2}>
@@ -202,9 +210,11 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                     outerRadius={radius}
                     startAngle={-Math.PI * 0.75}
                     endAngle={Math.PI * 0.75}
-                    fill="#1e293b"
-                    opacity={0.3}
+                    fill="rgba(59, 130, 246, 0.15)"
+                    stroke="rgba(255, 255, 255, 0.1)"
+                    strokeWidth={0.5}
                     cornerRadius={4}
+                    style={{ filter: 'url(#glassEffect)' }}
                 />
                 <Arc
                     innerRadius={innerRadius}
@@ -226,8 +236,7 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                     outerRadius={rpmRadius}
                     startAngle={-Math.PI * 0.75}
                     endAngle={Math.PI * 0.75}
-                    fill="#0f172a"
-                    opacity={0.5}
+                    fill="transparent"
                     cornerRadius={2}
                 />
                 {/* Active RPM */}
@@ -248,9 +257,9 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                             from={{ x: tick.x1, y: tick.y1 }}
                             to={{ x: tick.x2, y: tick.y2 }}
                             stroke={tick.isMajor ? "#94a3b8" : "#334155"}
-                            strokeWidth={tick.isMajor ? 2 : 1}
+                            strokeWidth={tick.isMajor ? 1.5 : 0.8}
                         />
-                        {tick.isMajor && (
+                        {tick.isMajor && width >= 250 && (
                             <text
                                 x={Math.cos(speedScale(tick.value) - Math.PI / 2) * (radius + 20)}
                                 y={Math.sin(speedScale(tick.value) - Math.PI / 2) * (radius + 20)}
@@ -311,7 +320,7 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                                         y={45}
                                         textAnchor="middle"
                                         fill={isActive ? "#e2e8f0" : "#64748b"}
-                                        fontSize={isActive ? 32 : 14}
+                                        fontSize={isActive ? 24 : 12}
                                         fontWeight={isActive ? 900 : 700}
                                         fontFamily="Outfit"
                                         style={{
@@ -335,7 +344,7 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                     outerRadius={telemetryOuter}
                     startAngle={-Math.PI * 0.75}
                     endAngle={0}
-                    fill="#1e293b" opacity={0.3}
+                    fill="rgba(255, 255, 255, 0.03)"
                     cornerRadius={4}
                 />
                 <Arc
@@ -344,6 +353,8 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                     startAngle={-Math.PI * 0.75}
                     endAngle={-Math.PI * 0.75 + (Math.PI * 0.75 * (vizThrottle / 100))}
                     fill="url(#throttleGrad)"
+                    stroke="rgba(255, 255, 255, 0.05)"
+                    strokeWidth={0.5}
                     cornerRadius={4}
                 />
                 <text
@@ -367,7 +378,7 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                     outerRadius={telemetryOuter}
                     startAngle={0}
                     endAngle={Math.PI * 0.75}
-                    fill="#1e293b" opacity={0.3}
+                    fill="rgba(255, 255, 255, 0.03)"
                     cornerRadius={4}
                 />
                 <Arc
@@ -376,6 +387,8 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                     startAngle={Math.PI * 0.75 - (Math.PI * 0.75 * (vizBrake / 100))}
                     endAngle={Math.PI * 0.75}
                     fill="url(#brakeGrad)"
+                    stroke="rgba(255, 255, 255, 0.05)"
+                    strokeWidth={0.5}
                     cornerRadius={4}
                 />
                 <text
@@ -401,7 +414,7 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                         fill="#3b82f6"
                         style={{ filter: 'url(#needleGlow)' }}
                     />
-                    <circle r={5} fill="#0f172a" stroke="#3b82f6" strokeWidth={2} />
+                    <circle r={5} fill="transparent" stroke="#3b82f6" strokeWidth={2} />
                 </Group>
 
                 {/* Speed in Bottom Gap */}
@@ -409,36 +422,40 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                     y={radius * 0.8} // Lower down in the gap
                     textAnchor="middle"
                     fill="#ffffff"
-                    fontSize={48}
+                    fontSize={width < 250 ? 28 : 36}
                     fontWeight={900}
                     fontFamily="Outfit"
                     style={{ filter: 'drop-shadow(0 2px 10px rgba(59, 130, 246, 0.4))' }}
                 >
                     {Math.round(speed)}
                 </text>
-                <text
-                    y={radius * 0.8 + 14}
-                    textAnchor="middle"
-                    fill="#64748b"
-                    fontSize={10}
-                    fontWeight={800}
-                    letterSpacing="0.2em"
-                    fontFamily="Titillium Web"
-                >
-                    KM/H
-                </text>
+                {width >= 250 && (
+                    <text
+                        y={radius * 0.8 + (width < 250 ? 10 : 14)}
+                        textAnchor="middle"
+                        fill="#64748b"
+                        fontSize={width < 250 ? 8 : 10}
+                        fontWeight={800}
+                        letterSpacing="0.2em"
+                        fontFamily="Titillium Web"
+                    >
+                        KM/H
+                    </text>
+                )}
 
                 {/* RPM Label */}
-                <text
-                    y={radius + 35}
-                    textAnchor="middle"
-                    fill="#94a3b8"
-                    fontSize={10}
-                    fontWeight={700}
-                    fontFamily="JetBrains Mono"
-                >
-                    {Math.round(rpm)} RPM
-                </text>
+                {width >= 250 && (
+                    <text
+                        y={radius + (width < 250 ? 25 : 35)}
+                        textAnchor="middle"
+                        fill="#94a3b8"
+                        fontSize={width < 250 ? 8 : 10}
+                        fontWeight={700}
+                        fontFamily="JetBrains Mono"
+                    >
+                        {Math.round(rpm)} RPM
+                    </text>
+                )}
 
             </Group>
         </svg>

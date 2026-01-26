@@ -17,41 +17,51 @@ export const SpeedDistanceGraph: React.FC<SpeedGraphProps> = ({ width, height })
     const currentTime = useRaceStore(state => state.currentTime);
     const trackLength = useRaceStore(state => state.trackLength);
 
-    // Data selector
-    const graphData = useMemo(() => {
-        if (!raceData || !focusedDriver) return [];
+    const WINDOW_SIZE = 2500; // 2.5km view window for better context
+    const HISTORY_RATIO = 0.95; // Car sits at 95% position (leading edge)
+
+    // Data selector with cumulative distance logic
+    const { graphData, windowStart, windowEnd, currentCumulativeDist } = useMemo(() => {
+        if (!raceData || !focusedDriver || !trackLength) {
+            return { graphData: [], windowStart: 0, windowEnd: WINDOW_SIZE, currentCumulativeDist: 0 };
+        }
 
         const driver = raceData.drivers.find(d => d.driver_abbr === focusedDriver);
-        if (!driver) return [];
+        if (!driver) return { graphData: [], windowStart: 0, windowEnd: WINDOW_SIZE, currentCumulativeDist: 0 };
 
         const currentFrame = getInterpolatedFrame(driver.telemetry, currentTime);
-        const currentLap = currentFrame.lap;
-        const safeTrackLength = trackLength > 0 ? trackLength : 1;
+        const currentCumulative = (currentFrame.lap - 1) * trackLength + currentFrame.dist;
 
-        // Filter and map data for the TRAIL (current driver, current lap, up to current time)
-        const trail = driver.telemetry
-            .filter(t => t.lap === currentLap && t.t <= currentTime)
+        const start = currentCumulative - WINDOW_SIZE * HISTORY_RATIO;
+        const end = currentCumulative + WINDOW_SIZE * (1 - HISTORY_RATIO);
+
+        // Map and filter for the rolling window, CAPPING at current distance
+        const data = driver.telemetry
             .map(t => ({
-                dist: t.dist % safeTrackLength,
+                absDist: (t.lap - 1) * trackLength + t.dist,
                 speed: t.speed || 0
             }))
-            .filter(t => !isNaN(t.dist) && !isNaN(t.speed));
+            .filter(t => t.absDist >= start - 100 && t.absDist <= currentCumulative) // Clip future data
+            .sort((a, b) => a.absDist - b.absDist);
 
-        // Sort to ensure valid path
-        trail.sort((a, b) => a.dist - b.dist);
+        // Ensure the path draws right up to the car's current position
+        if (data.length > 0 && data[data.length - 1].absDist < currentCumulative) {
+            data.push({ absDist: currentCumulative, speed: currentFrame.speed || 0 });
+        }
 
-        // Append the exact current position for a perfectly smooth connection
-        const currentDist = (currentFrame.dist % safeTrackLength) || 0;
-        trail.push({ dist: currentDist, speed: currentFrame.speed || 0 });
-
-        return trail;
+        return {
+            graphData: data,
+            windowStart: start,
+            windowEnd: end,
+            currentCumulativeDist: currentCumulative
+        };
     }, [raceData, focusedDriver, currentTime, trackLength]);
 
     // Scales
     const xScale = useMemo(() => scaleLinear({
         range: [0, width],
-        domain: [0, trackLength],
-    }), [width, trackLength]);
+        domain: [windowStart, windowEnd],
+    }), [width, windowStart, windowEnd]);
 
     const yScale = useMemo(() => scaleLinear({
         range: [height, 0],
@@ -60,19 +70,16 @@ export const SpeedDistanceGraph: React.FC<SpeedGraphProps> = ({ width, height })
 
     // Current Position Indicator
     const currentPos = useMemo(() => {
-        if (!raceData || !focusedDriver || trackLength <= 0 || isNaN(trackLength)) return { x: 0, y: height };
-        const driver = raceData.drivers.find(d => d.driver_abbr === focusedDriver);
-        if (!driver) return { x: 0, y: height };
-
-        const frame = getInterpolatedFrame(driver.telemetry, currentTime);
-        const x = xScale(frame.dist % trackLength);
-        const y = yScale(frame.speed);
+        const x = xScale(currentCumulativeDist);
+        const driver = raceData?.drivers.find(d => d.driver_abbr === focusedDriver);
+        const speed = driver ? getInterpolatedFrame(driver.telemetry, currentTime).speed : 0;
+        const y = yScale(speed);
 
         return {
             x: isFinite(x) ? x : 0,
             y: isFinite(y) ? y : height
         };
-    }, [raceData, focusedDriver, currentTime, xScale, yScale, height, trackLength]);
+    }, [currentCumulativeDist, xScale, yScale, raceData, focusedDriver, currentTime, height]);
 
     return (
         <div className="speed-distance-graph" style={{ width, height, position: 'relative' }}>
@@ -106,7 +113,7 @@ export const SpeedDistanceGraph: React.FC<SpeedGraphProps> = ({ width, height })
 
                     <AreaClosed
                         data={graphData}
-                        x={d => xScale(d.dist)}
+                        x={d => xScale(d.absDist)}
                         y={d => yScale(d.speed)}
                         yScale={yScale}
                         strokeWidth={0}
@@ -116,7 +123,7 @@ export const SpeedDistanceGraph: React.FC<SpeedGraphProps> = ({ width, height })
 
                     <LinePath
                         data={graphData}
-                        x={d => xScale(d.dist)}
+                        x={d => xScale(d.absDist)}
                         y={d => yScale(d.speed)}
                         stroke="#3b82f6"
                         strokeWidth={3}

@@ -10,6 +10,7 @@ import { getSector } from '../utils/constants';
 interface TrackMapProps {
     width: number;
     height: number;
+    verticalOffset?: number;
 }
 
 const TEAM_COLORS: Record<string, string> = {
@@ -27,7 +28,7 @@ const TEAM_COLORS: Record<string, string> = {
 
 const DEFAULT_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#a855f7'];
 
-export const TrackMap: React.FC<TrackMapProps> = ({ width, height }) => {
+export const TrackMap: React.FC<TrackMapProps> = ({ width, height, verticalOffset = 0 }) => {
     // Selective state picking to prevent unnecessary re-renders
     const raceData = useRaceStore(state => state.raceData);
     const currentTime = useRaceStore(state => state.currentTime);
@@ -113,7 +114,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height }) => {
     const vbWidth = 1000 / viewport.zoom;
     const vbHeight = 700 / viewport.zoom;
     const vbX = viewport.x - vbWidth / 2;
-    const vbY = viewport.y - vbHeight / 2;
+    const vbY = (viewport.y - vbHeight / 2) - (verticalOffset / viewport.zoom);
 
 
 

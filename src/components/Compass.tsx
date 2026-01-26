@@ -54,7 +54,7 @@ export const Compass: React.FC<CompassProps> = ({ size }) => {
 
         return (
             <Group top={r} left={r}>
-                <circle r={r} fill="rgba(15, 23, 42, 0.6)" stroke="#0ea5e9" strokeWidth={1} strokeOpacity={0.3} />
+                <circle r={r} fill="transparent" stroke="#0ea5e9" strokeWidth={1} strokeOpacity={0.3} />
                 <circle r={r * 0.8} fill="none" stroke="#64748b" strokeWidth={0.5} strokeOpacity={0.2} strokeDasharray="2,2" />
 
                 {/* Rotating compass rose with smooth transition */}
