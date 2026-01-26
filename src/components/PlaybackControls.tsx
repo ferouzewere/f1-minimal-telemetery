@@ -34,7 +34,7 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ isVertical =
     const currentFrame = useMemo(() => {
         if (!focusedDriverData) return null;
         try {
-            return getInterpolatedFrame(focusedDriverData.telemetry, currentTime);
+            return getInterpolatedFrame(focusedDriverData.telemetry, currentTime).frame;
         } catch (e) {
             return null;
         }

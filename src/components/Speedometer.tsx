@@ -3,7 +3,6 @@ import { Group } from '@visx/group';
 import { Arc, Line } from '@visx/shape';
 import { scaleLinear } from '@visx/scale';
 import { useRaceStore } from '../store/useRaceStore';
-import { getInterpolatedFrame } from '../utils/interpolation';
 
 interface SpeedometerProps {
     width: number;
@@ -14,13 +13,9 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
     const raceData = useRaceStore((state) => state.raceData);
     const focusedDriver = useRaceStore((state) => state.focusedDriver);
     const currentTime = useRaceStore((state) => state.currentTime);
+    const driverFrames = useRaceStore((state) => state.driverFrames);
 
-    const currentFrame = useMemo(() => {
-        if (!raceData || !focusedDriver) return null;
-        const driver = raceData.drivers.find(d => d.driver_abbr === focusedDriver);
-        if (!driver) return null;
-        return getInterpolatedFrame(driver.telemetry, currentTime);
-    }, [raceData, focusedDriver, currentTime]);
+    const currentFrame = focusedDriver ? driverFrames[focusedDriver] : null;
 
     const speed = currentFrame?.speed || 0;
     const throttle = currentFrame?.throttle || 0;

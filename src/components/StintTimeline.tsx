@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { useRaceStore } from '../store/useRaceStore';
 import '../styles/StintTimeline.css';
 
-export const StintTimeline: React.FC = () => {
+export const StintTimeline = () => {
     const { raceData, focusedDriver } = useRaceStore();
 
     const focusedDriverData = useMemo(() => {

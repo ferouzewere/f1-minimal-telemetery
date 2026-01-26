@@ -1,8 +1,7 @@
-import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRaceStore } from '../store/useRaceStore';
 
-export const WeatherOverlay: React.FC = () => {
+export const WeatherOverlay = () => {
     const currentWeather = useRaceStore(state => state.currentWeather);
     const isRaining = currentWeather?.rainfall || false;
 

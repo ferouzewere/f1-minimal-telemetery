@@ -14,7 +14,6 @@ import { SessionSelector } from './components/SessionSelector'
 import { Compass } from './components/Compass'
 import { VehicleStatus } from './components/VehicleStatus'
 import { getCachedData } from './utils/db'
-import { getInterpolatedFrame } from './utils/interpolation'
 import { WeatherOverlay } from './components/WeatherOverlay'
 import { TrackStatusBanner } from './components/TrackStatusBanner'
 
@@ -274,7 +273,7 @@ function App() {
             {/* VERTICAL RIGHT-SIDE CONTROLS (MOBILE ONLY) */}
             <div className="hud-right-controls">
               <div className="race-status-clock mobile-stack-clock">
-                <span className="lap-indicator">L{raceData?.drivers[0] ? getInterpolatedFrame(raceData.drivers[0].telemetry, currentTime).lap : 1}/{totalLaps || '-'}</span>
+                <span className="lap-indicator">L{raceData?.drivers[0] && useRaceStore.getState().driverFrames[raceData.drivers[0].driver_abbr]?.lap || 1}/{totalLaps || '-'}</span>
                 <span className="time-separator">/</span>
                 <span className="elapsed-time">{
                   (() => {

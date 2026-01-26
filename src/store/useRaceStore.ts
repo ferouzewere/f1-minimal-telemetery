@@ -1,5 +1,6 @@
 import { setCachedData } from '../utils/db';
 import { create } from 'zustand';
+import { getInterpolatedFrame } from '../utils/interpolation';
 
 export interface TelemetryFrame {
   t: number;
@@ -102,6 +103,9 @@ interface RaceState {
   sessionBestLap: number; // Lowest lap time in ms
   currentWeather: WeatherFrame | null;
   currentTrackStatus: TrackStatusFrame | null;
+  driverFrames: Record<string, TelemetryFrame | null>;
+  lastIndices: Record<string, number>;
+  leaderAbbr: string | null;
 
   // Actions
   loadRaceData: (data: RaceData, metadata?: CircuitMetadata, cacheKey?: string) => void;
@@ -114,7 +118,7 @@ interface RaceState {
   setIsPlaying: (playing: boolean) => void;
 }
 
-export const useRaceStore = create<RaceState>((set) => ({
+export const useRaceStore = create<RaceState>((set, get) => ({
   currentTime: 0,
   playSpeed: 1,
   isPlaying: false,
@@ -129,6 +133,9 @@ export const useRaceStore = create<RaceState>((set) => ({
   sessionBestLap: Infinity,
   currentWeather: null,
   currentTrackStatus: null,
+  driverFrames: {},
+  lastIndices: {},
+  leaderAbbr: null,
 
   loadRaceData: (data, metadata, cacheKey) => {
     if (!data || !data.drivers || data.drivers.length === 0) return;
@@ -157,12 +164,18 @@ export const useRaceStore = create<RaceState>((set) => ({
         sessionBests: sessionSectorBest,
         totalLaps: maxLap,
         pitStops,
-        sessionBestLap: sessionBest
+        sessionBestLap: sessionBest,
+        driverFrames: {},
+        lastIndices: {},
+        leaderAbbr: null
       });
 
       if (cacheKey) {
         setCachedData(cacheKey, { raceData });
       }
+
+      // Initialize positions immediately
+      get().setCurrentTime(0);
 
       worker.terminate();
     };
@@ -175,29 +188,58 @@ export const useRaceStore = create<RaceState>((set) => ({
 
   setCurrentTime: (time) => {
     set((state) => {
-      // Find current weather and track status
+      if (!state.raceData) return { currentTime: time };
+
+      // 1. Weather/Status (as before)
       let weather = state.currentWeather;
-      if (state.raceData?.weather) {
+      if (state.raceData.weather) {
         weather = state.raceData.weather.reduce((prev, curr) =>
           (curr.t <= time && curr.t > (prev?.t || -1)) ? curr : prev, null as WeatherFrame | null);
       }
 
       let status = state.currentTrackStatus;
-      if (state.raceData?.track_status) {
+      if (state.raceData.track_status) {
         status = state.raceData.track_status.reduce((prev, curr) =>
           (curr.t <= time && curr.t > (prev?.t || -1)) ? curr : prev, null as TrackStatusFrame | null);
       }
 
+      // 2. Parallel Driver Frame Calculation with Index Hinting
+      const nextFrames: Record<string, TelemetryFrame> = {};
+      const nextIndices: Record<string, number> = { ...state.lastIndices };
+      let leaderAbbr: string | null = null;
+      let maxTotalDist = -1;
+
+      state.raceData.drivers.forEach(driver => {
+        const result = getInterpolatedFrame(
+          driver.telemetry,
+          time,
+          state.lastIndices[driver.driver_abbr] || 0
+        );
+
+        nextFrames[driver.driver_abbr] = result.frame;
+        nextIndices[driver.driver_abbr] = result.index;
+
+        // 3. Leader Calculation (Optimized: single pass)
+        const totalDist = (result.frame.lap - 1) * state.trackLength + result.frame.dist;
+        if (totalDist > maxTotalDist) {
+          maxTotalDist = totalDist;
+          leaderAbbr = driver.driver_abbr;
+        }
+      });
+
       return {
         currentTime: time,
         currentWeather: weather,
-        currentTrackStatus: status
+        currentTrackStatus: status,
+        driverFrames: nextFrames,
+        lastIndices: nextIndices,
+        leaderAbbr
       };
     });
   },
   setPlaySpeed: (speed) => set({ playSpeed: speed }),
   togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),
-  seekTo: (time) => set({ currentTime: time }),
+  seekTo: (time) => get().setCurrentTime(time),
   setFocusedDriver: (abbr) => set({ focusedDriver: abbr }),
   setComparisonDriver: (abbr) => set({ comparisonDriver: abbr }),
   setIsPlaying: (playing) => set({ isPlaying: playing }),

@@ -33,6 +33,8 @@
 .driver-table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
+    /* NEW: Fixes wobbling */
     font-family: 'Titillium Web', sans-serif;
     font-size: 0.85rem;
     letter-spacing: 0.02em;
@@ -49,26 +51,64 @@
     text-transform: uppercase;
     /* F1 Style */
     border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-    position: sticky;
-    top: 0;
     background: transparent;
-    z-index: 10;
+    white-space: nowrap;
+    /* Prevent headers from wrapping */
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .driver-table tbody td {
     padding: 0.5rem 0.5rem;
     vertical-align: middle;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    white-space: nowrap;
+    /* Prevent content from wrapping */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Handle overflow gracefully */
+}
+
+/* --- COLUMN WIDTHS --- */
+.driver-table .th-pos,
+.driver-table .td-pos {
+    width: 40px;
 }
 
 .driver-table .th-driver,
 .driver-table .td-driver {
-    width: 150px;
+    width: 120px;
 }
+
+.driver-table .th-tyre,
+.driver-table .td-tyre {
+    width: 50px;
+}
+
+
+
+.driver-table .th-gap,
+.driver-table .td-gap {
+    width: 80px;
+    text-align: right;
+}
+
+.driver-table .th-last,
+.driver-table .td-last {
+    width: 85px;
+    text-align: right;
+}
+
+.driver-table .th-sect,
+.driver-table .td-sect {
+    width: auto;
+    /* Takes remaining space */
+}
+
+
 
 .driver-table .th-pos,
 .driver-table .td-pos {
-    width: 40px;
     text-align: center;
     font-weight: 700;
     font-style: italic;
@@ -80,6 +120,8 @@
     display: flex;
     flex-direction: column;
     line-height: 1;
+    overflow: hidden;
+    /* Ensure text doesn't overflow container */
 }
 
 .driver-cell .abbr {
@@ -97,17 +139,20 @@
     text-transform: uppercase;
     letter-spacing: 0.1em;
     margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Ensure numbers use the technical font nicely */
 .td-gap,
-.td-last,
-.td-speed,
-.td-gear {
+.td-last {
     font-family: 'Titillium Web', monospace;
     /* Monospaced numbers */
     font-weight: 700;
     letter-spacing: 0.05em;
+    font-variant-numeric: tabular-nums;
+    /* CRITICAL: prevent wobbling */
 }
 
 .table-header-indicator {
@@ -279,4 +324,61 @@
     background: rgba(250, 204, 21, 0.2);
     color: #facc15;
     border: 1px solid rgba(250, 204, 21, 0.4);
+}
+
+/* --- FOCUS MODE STYLES --- */
+/* --- FOCUS MODE STYLES --- */
+.has-focus .driver-row {
+    transition: opacity 0.4s ease, filter 0.4s ease;
+    /* Removed transform transition to avoid layout jitter */
+}
+
+.has-focus .driver-row:not(.focused) {
+    opacity: 0.3;
+    filter: grayscale(1) blur(0.5px);
+    /* No scale down, keeps layout stable */
+}
+
+.driver-row.focused {
+    z-index: 20;
+    position: relative;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+    background-color: rgba(255, 255, 255, 0.03);
+    /* Subtle highlight base */
+}
+
+/* Smoothly expand the focused row using typography and padding instead of transform */
+.driver-row.focused td {
+    padding-top: 1.1rem;
+    padding-bottom: 1.1rem;
+    background: rgba(0, 0, 0, 0.2);
+    /* darken slightly to pop text */
+    color: #fff !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.driver-row.focused .driver-cell .abbr {
+    font-size: 1.5rem;
+    /* ~1.35x scale */
+}
+
+.driver-row.focused .driver-cell .team {
+    font-size: 0.75rem;
+    opacity: 1;
+    margin-top: 4px;
+}
+
+.driver-row.focused .td-gap,
+.driver-row.focused .td-last,
+.driver-row.focused .tyre-cell .age {
+    font-size: 1.1rem;
+    /* Larger data numbers */
+    opacity: 1;
+}
+
+.driver-row.focused .tyre-dot {
+    width: 12px;
+    height: 12px;
+    /* Larger tyre indicator */
 }

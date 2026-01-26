@@ -1,37 +1,55 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useRaceStore } from '../store/useRaceStore';
-import { getInterpolatedFrame } from '../utils/interpolation';
+import type { DriverData, TelemetryFrame } from '../store/useRaceStore';
 import { getSector } from '../utils/constants';
+import type { Sector } from '../utils/constants';
 import '../styles/DriverTable.css';
 
+interface DriverRow extends DriverData {
+    currentFrame: TelemetryFrame;
+    pos: number;
+    sector: Sector;
+    stintNumber: number;
+    gap: number;
+    sectorProgress: number;
+    personalBestLap: number;
+    sectorPerformance: Record<number, 'yellow' | 'green' | 'purple'>;
+}
 
 export const DriverTable: React.FC = () => {
-    const { raceData, currentTime, focusedDriver, comparisonDriver, circuitMetadata, setFocusedDriver } = useRaceStore();
+    const { raceData, focusedDriver, comparisonDriver, circuitMetadata, setFocusedDriver } = useRaceStore();
 
     const trackLength = useRaceStore(state => state.trackLength);
     const sessionBestLap = useRaceStore(state => state.sessionBestLap);
     const sessionBests = useRaceStore(state => state.sessionBests);
+    const driverFrames = useRaceStore(state => state.driverFrames);
+    const leaderAbbr = useRaceStore(state => state.leaderAbbr);
 
-    const driverRows = useMemo(() => {
-        if (!raceData) return [];
+    const driverRows = useMemo<DriverRow[]>(() => {
+        if (!raceData || !leaderAbbr) return [];
 
-        // Initial pass to get all frames
-        const frames = raceData.drivers.map(d => ({
-            abbr: d.driver_abbr,
-            frame: getInterpolatedFrame(d.telemetry, currentTime)
-        }));
+        const leaderFrame = driverFrames[leaderAbbr];
+        if (!leaderFrame) return [];
 
-        // Sort by total distance traveled (lap * trackLength + dist) to find true leader
-        const sortedFrames = [...frames].sort((a, b) => {
-            const distA = (a.frame.lap - 1) * trackLength + a.frame.dist;
-            const distB = (b.frame.lap - 1) * trackLength + b.frame.dist;
-            return distB - distA;
-        });
+        const leaderDist = (leaderFrame.lap - 1) * trackLength + leaderFrame.dist;
 
-        const leaderDist = (sortedFrames[0].frame.lap - 1) * trackLength + sortedFrames[0].frame.dist;
+        // Calculate positions by sorting
+        const positions = raceData.drivers
+            .map(d => {
+                const frame = driverFrames[d.driver_abbr];
+                if (!frame) return { abbr: d.driver_abbr, dist: 0 };
+                return {
+                    abbr: d.driver_abbr,
+                    dist: (frame.lap - 1) * trackLength + frame.dist
+                };
+            })
+            .sort((a, b) => b.dist - a.dist);
 
         return raceData.drivers.map((driver) => {
-            const currentFrame = getInterpolatedFrame(driver.telemetry, currentTime);
+            const currentFrame = driverFrames[driver.driver_abbr];
+            if (!currentFrame) return null;
+
             const sector = getSector(currentFrame.dist, circuitMetadata);
 
             // Find current stint based on lap
@@ -57,7 +75,7 @@ export const DriverTable: React.FC = () => {
             return {
                 ...driver,
                 currentFrame,
-                pos: sortedFrames.findIndex(f => f.abbr === driver.driver_abbr) + 1,
+                pos: positions.findIndex(f => f.abbr === driver.driver_abbr) + 1,
                 sector,
                 stintNumber: currentStint?.stint || 1,
                 gap,
@@ -89,8 +107,8 @@ export const DriverTable: React.FC = () => {
                     return perf;
                 })()
             };
-        }).sort((a, b) => a.pos - b.pos);
-    }, [raceData, currentTime, trackLength, circuitMetadata]);
+        }).filter((driver): driver is DriverRow => driver !== null).sort((a, b) => a.pos - b.pos);
+    }, [raceData, driverFrames, leaderAbbr, trackLength, circuitMetadata, sessionBests]);
 
     if (!raceData) return null;
 
@@ -103,96 +121,107 @@ export const DriverTable: React.FC = () => {
                     LIVE
                 </div>
             </div>
+            {/* Static Header Table */}
+            <table className="driver-table">
+                <thead>
+                    <tr>
+                        <th className="th-pos">#</th>
+                        <th className="th-driver">DRIVER</th>
+                        <th className="th-tyre">TYRE</th>
+                        <th className="th-gap">GAP</th>
+                        <th className="th-last">LAST LAP</th>
+                        <th className="th-sect">SECTOR</th>
+                    </tr>
+                </thead>
+            </table>
+
+            {/* Scrollable Body Table */}
             <div className="table-scroll-area">
                 <table className="driver-table">
-                    <thead>
-                        <tr>
-                            <th className="th-pos">#</th>
-                            <th className="th-driver">DRIVER</th>
-                            <th className="th-tyre">TYRE</th>
-                            <th className="th-stint">ST</th>
-                            <th className="th-gap">GAP</th>
-                            <th className="th-last">LAST LAP</th>
-                            <th className="th-sect">SECTOR</th>
-                            <th className="th-speed">SPEED</th>
-                            <th className="th-gear">G</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {driverRows.map((driver) => {
-                            const isFocused = focusedDriver === driver.driver_abbr;
-                            const { currentFrame, sector, stintNumber, gap, sectorProgress } = driver;
+                    <tbody className={focusedDriver ? 'has-focus' : ''}>
+                        <AnimatePresence>
+                            {driverRows.map((driver) => {
+                                const isFocused = focusedDriver === driver.driver_abbr;
+                                const { currentFrame, sector, gap, sectorProgress } = driver;
 
-                            return (
-                                <tr
-                                    key={driver.driver_abbr}
-                                    className={`driver-row ${isFocused ? 'focused' : ''} ${comparisonDriver === driver.driver_abbr ? 'comparing' : ''}`}
-                                    onClick={(e) => {
-                                        if (e.altKey) {
-                                            useRaceStore.getState().setComparisonDriver(
-                                                comparisonDriver === driver.driver_abbr ? null : driver.driver_abbr
-                                            );
-                                        } else {
-                                            setFocusedDriver(isFocused ? null : driver.driver_abbr);
-                                        }
-                                    }}
-                                >
-                                    <td className="td-pos">{driver.pos}</td>
-                                    <td className="td-driver">
-                                        <div className="driver-cell">
-                                            <span className="abbr">
-                                                {driver.driver_abbr}
-                                                {currentFrame.drs === 1 && <span className="drs-badge">DRS</span>}
-                                                {currentFrame.is_pit && <span className="pit-badge">PIT</span>}
-                                            </span>
-                                            <span className="team">{driver.team}</span>
-                                        </div>
-                                    </td>
-                                    <td className="td-tyre">
-                                        <div className="tyre-cell">
-                                            <span className={`tyre-dot ${currentFrame.compound?.toLowerCase()}`}></span>
-                                            <span className="age">{currentFrame.tyre_age}</span>
-                                        </div>
-                                    </td>
-                                    <td className="td-stint">
-                                        <span className="stint-number">{stintNumber}</span>
-                                    </td>
-                                    <td className="td-gap">
-                                        {driver.pos === 1 ? 'LEADER' : `+${Math.round((Number(gap) || 0) * 10) / 10}m`}
-                                    </td>
-                                    <td className={`td-last ${(() => {
-                                        const lastLapNum = currentFrame.lap - 1;
-                                        const time = driver.lapTimes?.[lastLapNum];
-                                        if (!time) return '';
-                                        if (time <= sessionBestLap) return 'purple';
-                                        if (time <= driver.personalBestLap) return 'green';
-                                        return '';
-                                    })()}`}>
-                                        {(() => {
+                                return (
+                                    <motion.tr
+                                        layout
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1, boxShadow: "none" }}
+                                        exit={{ opacity: 0 }}
+                                        transition={{
+                                            layout: { type: "spring", stiffness: 300, damping: 30 },
+                                            opacity: { duration: 0.2 }
+                                        }}
+                                        key={driver.driver_abbr}
+                                        className={`driver-row ${isFocused ? 'focused' : ''} ${comparisonDriver === driver.driver_abbr ? 'comparing' : ''}`}
+                                        style={{
+                                            borderLeft: `4px solid ${driver.team_color || 'transparent'}`,
+                                            background: `linear-gradient(90deg, ${driver.team_color}${isFocused ? '66' : '22'} 0%, transparent ${isFocused ? '90%' : '40%'})`
+                                        }}
+                                        onClick={(e) => {
+                                            if (e.altKey) {
+                                                useRaceStore.getState().setComparisonDriver(
+                                                    comparisonDriver === driver.driver_abbr ? null : driver.driver_abbr
+                                                );
+                                            } else {
+                                                setFocusedDriver(isFocused ? null : driver.driver_abbr);
+                                            }
+                                        }}
+                                    >
+                                        <td className="td-pos">{driver.pos}</td>
+                                        <td className="td-driver">
+                                            <div className="driver-cell">
+                                                <span className="abbr">
+                                                    {driver.driver_abbr}
+                                                    {currentFrame.drs === 1 && <span className="drs-badge">DRS</span>}
+                                                    {currentFrame.is_pit && <span className="pit-badge">PIT</span>}
+                                                </span>
+                                                <span className="team">{driver.team}</span>
+                                            </div>
+                                        </td>
+                                        <td className="td-tyre">
+                                            <div className="tyre-cell">
+                                                <span className={`tyre-dot ${currentFrame.compound?.toLowerCase()}`}></span>
+                                                <span className="age">{currentFrame.tyre_age}</span>
+                                            </div>
+                                        </td>
+                                        <td className="td-gap">
+                                            {driver.pos === 1 ? 'LEADER' : `+${Math.round((Number(gap) || 0) * 10) / 10}m`}
+                                        </td>
+                                        <td className={`td-last ${(() => {
                                             const lastLapNum = currentFrame.lap - 1;
                                             const time = driver.lapTimes?.[lastLapNum];
-                                            if (!time) return '---';
-                                            const mins = Math.floor(time / 60000);
-                                            const secs = ((time % 60000) / 1000).toFixed(3);
-                                            return `${mins}:${secs.padStart(6, '0')}`;
-                                        })()}
-                                    </td>
-                                    <td className="td-sect">
-                                        <div className="sector-progress-container">
-                                            <span className={`sector-label s${sector} perf-${driver.sectorPerformance[sector]}`}>S{sector}</span>
-                                            <div className="sector-track">
-                                                <div
-                                                    className={`sector-fill s${sector} perf-${driver.sectorPerformance[sector]}`}
-                                                    style={{ width: `${sectorProgress}%` }}
-                                                ></div>
+                                            if (!time) return '';
+                                            if (time <= sessionBestLap) return 'purple';
+                                            if (time <= driver.personalBestLap) return 'green';
+                                            return '';
+                                        })()}`}>
+                                            {(() => {
+                                                const lastLapNum = currentFrame.lap - 1;
+                                                const time = driver.lapTimes?.[lastLapNum];
+                                                if (!time) return '---';
+                                                const mins = Math.floor(time / 60000);
+                                                const secs = ((time % 60000) / 1000).toFixed(3);
+                                                return `${mins}:${secs.padStart(6, '0')}`;
+                                            })()}
+                                        </td>
+                                        <td className="td-sect">
+                                            <div className="sector-progress-container">
+                                                <span className={`sector-label s${sector} perf-${driver.sectorPerformance[sector]}`}>S{sector}</span>
+                                                <div className="sector-track">
+                                                    <div
+                                                        className={`sector-fill s${sector} perf-${driver.sectorPerformance[sector]}`}
+                                                        style={{ width: `${sectorProgress}%` }}
+                                                    ></div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td className="td-speed">{currentFrame.speed}</td>
-                                    <td className="td-gear">{currentFrame.gear}</td>
-                                </tr>
-                            );
-                        })}
+                                        </td>
+                                    </motion.tr>
+                                );
+                            })}
+                        </AnimatePresence>
                     </tbody>
                 </table>
             </div>

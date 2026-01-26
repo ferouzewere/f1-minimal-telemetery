@@ -36,7 +36,7 @@ export const GlobalMultiGraph: React.FC<GlobalMultiGraphProps> = memo(({ width, 
         let currentMaxDist = 0;
 
         const data = raceData.drivers.map((driver) => {
-            const frame = getInterpolatedFrame(driver.telemetry, currentTime);
+            const frame = getInterpolatedFrame(driver.telemetry, currentTime).frame;
             // Current lap for trail filtering
             const currentLap = frame.lap;
 

@@ -30,7 +30,7 @@ export const TelemetryHUD: React.FC = () => {
         <div className="telemetry-hud-container">
             <div className={`telemetry-grid ${drivers.length > 1 ? 'dual' : ''}`}>
                 {drivers.map(driver => {
-                    const currentFrame = getInterpolatedFrame(driver!.telemetry, currentTime);
+                    const currentFrame = getInterpolatedFrame(driver!.telemetry, currentTime).frame;
                     return (
                         <div key={driver!.driver_abbr} className="telemetry-bar visible">
                             <div className="telemetry-item">

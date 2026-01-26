@@ -61,6 +61,43 @@ def run_script(year, race_name, laps):
     except Exception as e:
         print(f"[BRIDGE] CRITICAL FAILURE: {e}")
 
+@app.post("/delete-mission")
+async def delete_mission_endpoint(request: dict):
+    """
+    Triggers the mission_control.py script to delete a mission.
+    Expects json: { "circuit_id": "..." }
+    """
+    circuit_id = request.get("circuit_id")
+    if not circuit_id:
+        raise HTTPException(status_code=400, detail="circuit_id is required")
+
+    print(f"[BRIDGE] DELETE Request received for {circuit_id}")
+    
+    # Run synchronously to ensure completion before frontend refresh
+    run_delete_script(circuit_id)
+    
+    return {"status": "success", "message": f"Mission {circuit_id} decommissioned."}
+
+def run_delete_script(circuit_id):
+    try:
+        cmd = ["python", "scripts/mission_control.py", "delete", circuit_id]
+        print(f"[BRIDGE] Executing: {' '.join(cmd)}")
+        
+        process = subprocess.Popen(
+            cmd,
+            stdout=None,
+            stderr=None
+        )
+        process.wait()
+        
+        if process.returncode == 0:
+            print(f"[BRIDGE] SUCCESS: Mission {circuit_id} decommissioned.")
+        else:
+            print(f"[BRIDGE] ERROR: Delete script exited with code {process.returncode}")
+            
+    except Exception as e:
+        print(f"[BRIDGE] CRITICAL FAILURE: {e}")
+
 if __name__ == "__main__":
     import uvicorn
     # Run on port 3001

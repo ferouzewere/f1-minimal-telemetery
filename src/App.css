@@ -80,8 +80,8 @@ body {
 .hud-top-right {
   top: 1.5rem;
   right: 1.5rem;
-  width: 580px;
-  max-width: 45vw;
+  width: 480px;
+  max-width: 40vw;
   display: flex;
   flex-direction: column;
 }
@@ -196,7 +196,8 @@ body {
 
   .hud-bottom-right {
     position: absolute !important;
-    bottom: 0.5rem !important;
+    bottom: -2.5rem !important;
+    /* Lowered to give space */
     left: 50% !important;
     transform: translateX(-50%) !important;
     width: 100% !important;

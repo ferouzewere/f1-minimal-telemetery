@@ -1,10 +1,9 @@
-import React, { useMemo } from 'react';
+import { useMemo, Fragment } from 'react';
 import { Group } from '@visx/group';
 import { LinePath } from '@visx/shape';
 import { curveCardinal } from '@visx/curve';
 import { motion } from 'framer-motion';
 import { useRaceStore } from '../store/useRaceStore';
-import { getInterpolatedFrame } from '../utils/interpolation';
 import { getSector } from '../utils/constants';
 
 interface TrackMapProps {
@@ -28,10 +27,9 @@ const TEAM_COLORS: Record<string, string> = {
 
 const DEFAULT_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#a855f7'];
 
-export const TrackMap: React.FC<TrackMapProps> = ({ width, height, verticalOffset = 0 }) => {
+export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) => {
     // Selective state picking to prevent unnecessary re-renders
     const raceData = useRaceStore(state => state.raceData);
-    const currentTime = useRaceStore(state => state.currentTime);
     const focusedDriver = useRaceStore(state => state.focusedDriver);
     const setFocusedDriver = useRaceStore(state => state.setFocusedDriver);
     const circuitMetadata = useRaceStore(state => state.circuitMetadata);
@@ -70,12 +68,15 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height, verticalOffse
         return segs;
     }, [trackPoints]);
 
+    const driverFrames = useRaceStore(state => state.driverFrames);
+    const leaderAbbr = useRaceStore(state => state.leaderAbbr);
+
     const driverPositions = useMemo(() => {
         if (!raceData) return [];
         return raceData.drivers
-            .filter(driver => driver.telemetry && driver.telemetry.length > 0)
+            .filter(driver => driverFrames[driver.driver_abbr])
             .map((driver, idx) => {
-                const frame = getInterpolatedFrame(driver.telemetry, currentTime);
+                const frame = driverFrames[driver.driver_abbr]!;
 
                 return {
                     abbr: driver.driver_abbr,
@@ -86,7 +87,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height, verticalOffse
                     color: driver.team_color || TEAM_COLORS[driver.team] || DEFAULT_COLORS[idx % DEFAULT_COLORS.length]
                 };
             }).filter(pos => !isNaN(pos.x) && !isNaN(pos.y));
-    }, [raceData, currentTime]);
+    }, [raceData, driverFrames]);
 
     const trackBounds = useMemo(() => {
         if (trackPoints.length === 0) return { minX: 0, maxX: 1000, minY: 0, maxY: 700 };
@@ -107,12 +108,11 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height, verticalOffse
             return { x: centerX, y: centerY, zoom: 0.95 };
         }
 
-        const driver = raceData.drivers.find(d => d.driver_abbr === focusedDriver);
-        if (!driver) return { x: 500, y: 350, zoom: 1 };
-        const frame = getInterpolatedFrame(driver.telemetry, currentTime);
+        const frame = driverFrames[focusedDriver];
+        if (!frame) return { x: 500, y: 350, zoom: 1 };
 
         return { x: frame.x, y: frame.y, zoom: 2.2 };
-    }, [raceData, focusedDriver, currentTime, trackBounds]);
+    }, [raceData, focusedDriver, driverFrames, trackBounds]);
 
     const vbWidth = 1000 / viewport.zoom;
     const vbHeight = 700 / viewport.zoom;
@@ -229,7 +229,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height, verticalOffse
 
                 {/* Coordinate Crosshairs */}
                 {[0.25, 0.5, 0.75].map(v => (
-                    <React.Fragment key={v}>
+                    <Fragment key={v}>
                         <line
                             x1={minX + trackW * v} y1={minY - 5000}
                             x2={minX + trackW * v} y2={maxY + 5000}
@@ -240,7 +240,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height, verticalOffse
                             x2={maxX + 5000} y2={minY + trackH * v}
                             stroke="#0ea5e9" strokeWidth={1} strokeDasharray="5,5" opacity={0.15}
                         />
-                    </React.Fragment>
+                    </Fragment>
                 ))}
             </Group>
         );
@@ -458,21 +458,9 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height, verticalOffse
 
                 {/* Leader Ghost Layer (for comparison) */}
                 {(() => {
-                    if (!raceData || driverPositions.length === 0) return null;
-                    // Let's calculate total distance in TrackMap as well to find the leader
-                    const trackLength = useRaceStore.getState().trackLength;
-                    const leaderDriver = raceData.drivers.reduce((prev, curr) => {
-                        const framePrev = getInterpolatedFrame(prev.telemetry, currentTime);
-                        const frameCurr = getInterpolatedFrame(curr.telemetry, currentTime);
-                        const distPrev = (framePrev.lap - 1) * trackLength + framePrev.dist;
-                        const distCurr = (frameCurr.lap - 1) * trackLength + frameCurr.dist;
-                        return distPrev > distCurr ? prev : curr;
-                    });
-
-                    const leaderFrame = getInterpolatedFrame(leaderDriver.telemetry, currentTime);
-                    const isLeaderFocused = focusedDriver === leaderDriver.driver_abbr;
-
-                    if (isLeaderFocused) return null; // Don't show ghost if focusing on leader
+                    if (!raceData || !leaderAbbr || leaderAbbr === focusedDriver) return null;
+                    const leaderFrame = driverFrames[leaderAbbr];
+                    if (!leaderFrame) return null;
 
                     return (
                         <Group key="leader-ghost" top={leaderFrame.y} left={leaderFrame.x} style={{ opacity: 0.3, pointerEvents: 'none' }}>

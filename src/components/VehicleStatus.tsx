@@ -1,27 +1,18 @@
-import React, { useMemo } from 'react';
 import { Group } from '@visx/group';
 import { Arc } from '@visx/shape';
 import { scaleLinear } from '@visx/scale';
 import { useRaceStore } from '../store/useRaceStore';
-import { getInterpolatedFrame } from '../utils/interpolation';
 
 interface VehicleStatusProps {
     size: number;
 }
 
 export const VehicleStatus: React.FC<VehicleStatusProps> = ({ size }) => {
-    const raceData = useRaceStore(state => state.raceData);
     const focusedDriver = useRaceStore(state => state.focusedDriver);
-    const currentTime = useRaceStore(state => state.currentTime);
     const totalLaps = useRaceStore(state => state.totalLaps);
+    const driverFrames = useRaceStore(state => state.driverFrames);
 
-    // Get Current Telemetry
-    const currentFrame = useMemo(() => {
-        if (!raceData || !focusedDriver) return null;
-        const driver = raceData.drivers.find(d => d.driver_abbr === focusedDriver);
-        if (!driver) return null;
-        return getInterpolatedFrame(driver.telemetry, currentTime);
-    }, [raceData, focusedDriver, currentTime]);
+    const currentFrame = focusedDriver ? driverFrames[focusedDriver] : null;
 
     // --- FUEL LOGIC (Simulated) ---
     // Start with 110kg. Burn linear to 0 at totalLaps.

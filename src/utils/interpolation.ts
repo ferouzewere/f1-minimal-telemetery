@@ -42,29 +42,49 @@ export const interpolateFrames = (
 };
 
 /**
- * Efficiently finds the bounding frames for a given time and returns interpolated frame
+ * Efficiently finds the bounding frames for a given time and returns interpolated frame.
+ * Supports index hinting for O(1) performance during sequential playback.
  */
 export const getInterpolatedFrame = (
     telemetry: TelemetryFrame[],
-    currentTime: number
-): TelemetryFrame => {
+    currentTime: number,
+    hintIndex: number = 0
+): { frame: TelemetryFrame; index: number } => {
     if (telemetry.length === 0) throw new Error("Empty telemetry");
-    if (telemetry.length === 1) return telemetry[0];
+    if (telemetry.length === 1) return { frame: telemetry[0], index: 0 };
 
-    // Binary search for the index where frames[i].t <= currentTime < frames[i+1].t
-    let low = 0;
-    let high = telemetry.length - 2;
-    let index = 0;
+    let index = -1;
 
-    while (low <= high) {
-        const mid = Math.floor((low + high) / 2);
-        if (telemetry[mid].t <= currentTime) {
-            index = mid;
-            low = mid + 1;
-        } else {
-            high = mid - 1;
+    // 1. Try Hint Index (O(1))
+    if (hintIndex >= 0 && hintIndex < telemetry.length - 1) {
+        if (telemetry[hintIndex].t <= currentTime && (hintIndex + 1 >= telemetry.length || telemetry[hintIndex + 1].t > currentTime)) {
+            index = hintIndex;
+        }
+        // 2. Try Next Index (Common during forward playback)
+        else if (hintIndex + 1 < telemetry.length - 1 && telemetry[hintIndex + 1].t <= currentTime && telemetry[hintIndex + 2].t > currentTime) {
+            index = hintIndex + 1;
         }
     }
 
-    return interpolateFrames(telemetry[index], telemetry[index + 1], currentTime);
+    // 3. Fallback: Binary Search (O(log N))
+    if (index === -1) {
+        let low = 0;
+        let high = telemetry.length - 2;
+        index = 0;
+
+        while (low <= high) {
+            const mid = Math.floor((low + high) / 2);
+            if (telemetry[mid].t <= currentTime) {
+                index = mid;
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
+        }
+    }
+
+    return {
+        frame: interpolateFrames(telemetry[index], telemetry[index + 1], currentTime),
+        index
+    };
 };

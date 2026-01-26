@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { MissionManager } from './MissionManager';
 import { getCachedData } from '../utils/db';
 import { useRaceStore } from '../store/useRaceStore';
@@ -47,7 +47,7 @@ interface SessionSelectorProps {
     setIsOpen: (open: boolean) => void;
 }
 
-export const SessionSelector: React.FC<SessionSelectorProps> = ({ isOpen, setIsOpen }) => {
+export const SessionSelector = ({ isOpen, setIsOpen }: SessionSelectorProps) => {
     const [manifest, setManifest] = useState<Manifest | null>(null);
     const [loading, setLoading] = useState(false);
     const [view, setView] = useState<'selection' | 'management'>('selection');

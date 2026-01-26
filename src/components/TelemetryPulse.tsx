@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Group } from '@visx/group';
 import { LinePath } from '@visx/shape';
 import { scaleLinear } from '@visx/scale';
@@ -10,7 +10,7 @@ interface TelemetryPulseProps {
     height: number;
 }
 
-export const TelemetryPulse: React.FC<TelemetryPulseProps> = ({ width, height }) => {
+export const TelemetryPulse = ({ width, height }: TelemetryPulseProps) => {
     const { raceData, currentTime, focusedDriver } = useRaceStore();
 
     // Find target driver (focused or session leader)

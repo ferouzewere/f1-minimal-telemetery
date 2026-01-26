@@ -24,8 +24,11 @@ export const Compass: React.FC<CompassProps> = ({ size }) => {
             // Get focused driver's current and next position to calculate heading
             const driver = raceData.drivers.find(d => d.driver_abbr === focusedDriver);
             if (driver) {
-                const currentFrame = getInterpolatedFrame(driver.telemetry, currentTime);
-                const nextFrame = getInterpolatedFrame(driver.telemetry, currentTime + 0.1);
+                const currentResult = getInterpolatedFrame(driver.telemetry, currentTime);
+                const nextResult = getInterpolatedFrame(driver.telemetry, currentTime + 0.1);
+
+                const currentFrame = currentResult.frame;
+                const nextFrame = nextResult.frame;
 
                 const dx = nextFrame.x - currentFrame.x;
                 const dy = nextFrame.y - currentFrame.y;

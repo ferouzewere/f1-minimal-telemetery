@@ -53,7 +53,7 @@ export const MissionManager: React.FC<MissionManagerProps> = ({ onClose, current
                     race_name: race.name,
                     laps: 5
                 })
-            }).catch(e => console.warn("Bridge server not responding. Falling back to manual mode."));
+            }).catch(() => console.warn("Bridge server not responding. Falling back to manual mode."));
         } catch (e) {
             console.error("Failed to signal bridge server:", e);
         }
@@ -112,12 +112,26 @@ export const MissionManager: React.FC<MissionManagerProps> = ({ onClose, current
             setStatusMessage(`DECOMMISSIONING: Removing mission ${circuitId}...`);
             console.log(`[SYSTEM_REQUEST] ACTION: DELETE_MISSION | ID: ${circuitId}`);
 
-            // Short delay to allow for removal perception
-            setTimeout(() => {
-                onRefresh();
-                setStatusMessage(`MISSION REMOVED: Registry updated.`);
+            try {
+                // Call the bridge server to perform actual deletion
+                await fetch('http://localhost:3001/delete-mission', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ circuit_id: circuitId })
+                });
+
+                // Short delay to allow for removal perception & backend processing
+                setTimeout(() => {
+                    onRefresh();
+                    setStatusMessage(`MISSION REMOVED: Registry updated.`);
+                    setTimeout(() => setStatusMessage(null), 3000);
+                }, 1500);
+
+            } catch (e) {
+                console.error("Failed to signal bridge server:", e);
+                setStatusMessage("ERROR: Could not contact mission control.");
                 setTimeout(() => setStatusMessage(null), 3000);
-            }, 1000);
+            }
         }
     };
 

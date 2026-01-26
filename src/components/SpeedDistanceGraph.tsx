@@ -29,7 +29,7 @@ export const SpeedDistanceGraph: React.FC<SpeedGraphProps> = ({ width, height })
         const driver = raceData.drivers.find(d => d.driver_abbr === focusedDriver);
         if (!driver) return { graphData: [], windowStart: 0, windowEnd: WINDOW_SIZE, currentCumulativeDist: 0 };
 
-        const currentFrame = getInterpolatedFrame(driver.telemetry, currentTime);
+        const currentFrame = getInterpolatedFrame(driver.telemetry, currentTime).frame;
         const currentCumulative = (currentFrame.lap - 1) * trackLength + currentFrame.dist;
 
         const start = currentCumulative - WINDOW_SIZE * HISTORY_RATIO;
@@ -72,7 +72,7 @@ export const SpeedDistanceGraph: React.FC<SpeedGraphProps> = ({ width, height })
     const currentPos = useMemo(() => {
         const x = xScale(currentCumulativeDist);
         const driver = raceData?.drivers.find(d => d.driver_abbr === focusedDriver);
-        const speed = driver ? getInterpolatedFrame(driver.telemetry, currentTime).speed : 0;
+        const speed = driver ? getInterpolatedFrame(driver.telemetry, currentTime).frame.speed : 0;
         const y = yScale(speed);
 
         return {

@@ -118,6 +118,10 @@ export const TrackStatusBanner: React.FC = () => {
     // 2. Monitor Track Status & Live Messages
     useEffect(() => {
         const statusId = currentTrackStatus?.status || '1';
+
+        // Ignore Checkered Flag (7) notification to keep UI minimal at session end
+        if (statusId === '7') return;
+
         if (statusId !== lastStatusRef.current) {
             const details = STATUS_DETAILS[statusId] || STATUS_DETAILS['1'];
 
@@ -156,7 +160,7 @@ export const TrackStatusBanner: React.FC = () => {
     useEffect(() => {
         if (!raceData || !raceData.drivers[0]) return;
         const leader = raceData.drivers[0];
-        const frame = getInterpolatedFrame(leader.telemetry, currentTime);
+        const frame = getInterpolatedFrame(leader.telemetry, currentTime).frame;
         const currentLap = frame.lap;
 
         if (currentLap > lastLapRef.current) {

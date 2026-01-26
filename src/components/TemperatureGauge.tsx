@@ -1,10 +1,8 @@
-import React from 'react';
-
 interface TemperatureGaugeProps {
     height: number;
 }
 
-export const TemperatureGauge: React.FC<TemperatureGaugeProps> = ({ height }) => {
+export const TemperatureGauge = ({ height }: TemperatureGaugeProps) => {
     // Mock temps
     const temps = {
         fl: 98,

@@ -26,3 +26,4 @@ dist-ssr
 # Project specific
 cache/
 public/data/2024_*.json
+stats.html
