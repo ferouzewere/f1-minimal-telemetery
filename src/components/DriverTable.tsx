@@ -148,17 +148,20 @@ export const DriverTable: React.FC = () => {
                                     <motion.tr
                                         layout
                                         initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1, boxShadow: "none" }}
+                                        animate={{
+                                            opacity: focusedDriver ? (isFocused ? 1 : 0.3) : 1,
+                                            zIndex: isFocused ? 50 : 1
+                                        }}
                                         exit={{ opacity: 0 }}
                                         transition={{
-                                            layout: { type: "spring", stiffness: 300, damping: 30 },
+                                            layout: { type: "spring", stiffness: 200, damping: 25 },
                                             opacity: { duration: 0.2 }
                                         }}
                                         key={driver.driver_abbr}
                                         className={`driver-row ${isFocused ? 'focused' : ''} ${comparisonDriver === driver.driver_abbr ? 'comparing' : ''}`}
                                         style={{
                                             borderLeft: `4px solid ${driver.team_color || 'transparent'}`,
-                                            background: `linear-gradient(90deg, ${driver.team_color}${isFocused ? '66' : '22'} 0%, transparent ${isFocused ? '90%' : '40%'})`
+                                            background: `linear-gradient(90deg, ${driver.team_color}22 0%, transparent 40%)`
                                         }}
                                         onClick={(e) => {
                                             if (e.altKey) {

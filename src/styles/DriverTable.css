@@ -326,59 +326,15 @@
     border: 1px solid rgba(250, 204, 21, 0.4);
 }
 
-/* --- FOCUS MODE STYLES --- */
-/* --- FOCUS MODE STYLES --- */
-.has-focus .driver-row {
-    transition: opacity 0.4s ease, filter 0.4s ease;
-    /* Removed transform transition to avoid layout jitter */
-}
+/* Focus Mode Styling (Transitions handled by Framer Motion for smoothness) */
 
-.has-focus .driver-row:not(.focused) {
-    opacity: 0.3;
-    filter: grayscale(1) blur(0.5px);
-    /* No scale down, keeps layout stable */
-}
-
+/* Focused Row: Depth & Elevation (Opacity logic handled in React) */
 .driver-row.focused {
-    z-index: 20;
+    z-index: 50;
     position: relative;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-    background-color: rgba(255, 255, 255, 0.03);
-    /* Subtle highlight base */
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
 }
 
-/* Smoothly expand the focused row using typography and padding instead of transform */
 .driver-row.focused td {
-    padding-top: 1.1rem;
-    padding-bottom: 1.1rem;
-    background: rgba(0, 0, 0, 0.2);
-    /* darken slightly to pop text */
     color: #fff !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.driver-row.focused .driver-cell .abbr {
-    font-size: 1.5rem;
-    /* ~1.35x scale */
-}
-
-.driver-row.focused .driver-cell .team {
-    font-size: 0.75rem;
-    opacity: 1;
-    margin-top: 4px;
-}
-
-.driver-row.focused .td-gap,
-.driver-row.focused .td-last,
-.driver-row.focused .tyre-cell .age {
-    font-size: 1.1rem;
-    /* Larger data numbers */
-    opacity: 1;
-}
-
-.driver-row.focused .tyre-dot {
-    width: 12px;
-    height: 12px;
-    /* Larger tyre indicator */
 }

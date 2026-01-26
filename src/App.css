@@ -59,11 +59,40 @@ body {
 .hud-panel {
   pointer-events: auto;
   position: absolute;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
+}
+
+/* Section Focus States */
+.hud-panel.dimmed-section {
+  opacity: 0.4;
+  filter: grayscale(0.2) blur(1px);
+  transform: scale(0.98);
+}
+
+.hud-panel.highlight-section {
+  opacity: 1;
+  filter: drop-shadow(0 0 30px rgba(0, 0, 0, 0.8));
+  z-index: 100;
+}
+
+.is-focused-tracking .hud-panel.highlight-section {
+  transform: scale(1.02);
+}
+
+/* Global Focus Effects */
+.focus-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  background: radial-gradient(circle at center,
+      transparent 20%,
+      rgba(2, 6, 23, 0.6) 100%);
+  mix-blend-mode: multiply;
 }
 
 .hud-top-center {

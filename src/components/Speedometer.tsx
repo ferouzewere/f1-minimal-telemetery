@@ -256,12 +256,12 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                             stroke={tick.isMajor ? "#94a3b8" : "#334155"}
                             strokeWidth={tick.isMajor ? 1.5 : 0.8}
                         />
-                        {tick.isMajor && width >= 250 && (
+                        {tick.isMajor && width >= 220 && (
                             <text
-                                x={Math.cos(speedScale(tick.value) - Math.PI / 2) * (radius + 20)}
-                                y={Math.sin(speedScale(tick.value) - Math.PI / 2) * (radius + 20)}
+                                x={Math.cos(speedScale(tick.value) - Math.PI / 2) * (radius + (width < 250 ? 15 : 20))}
+                                y={Math.sin(speedScale(tick.value) - Math.PI / 2) * (radius + (width < 250 ? 15 : 20))}
                                 fill="#64748b"
-                                fontSize={8}
+                                fontSize={width < 250 ? 7 : 8}
                                 fontWeight={700}
                                 textAnchor="middle"
                                 alignmentBaseline="middle"

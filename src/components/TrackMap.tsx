@@ -121,44 +121,28 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
 
 
 
-    const TacticalUnderlay = useMemo(() => {
-        const width = vbWidth;
-        const height = vbHeight;
-        const x = vbX;
-        const y = vbY;
-
-        const { minX, maxX, minY, maxY } = trackBounds;
-        const trackW = isFinite(maxX - minX) ? (maxX - minX) : 0;
-        const trackH = isFinite(maxY - minY) ? (maxY - minY) : 0;
-
-        // PROCEDURAL GENERATION: Create "Track Furniture" along the spline
-        const trackFeatures: any[] = [];
-
+    // --- ENVIRONMENT CACHE ---
+    // Procedural generation only happens once per track layout
+    const trackFeatures = useMemo(() => {
+        const features: any[] = [];
         if (trackPoints.length > 100) {
             const step = Math.floor(trackPoints.length / 40);
-
             for (let i = 0; i < trackPoints.length - step; i += step) {
                 const p1 = trackPoints[i];
                 const p2 = trackPoints[i + 5] || trackPoints[i + 1];
-
                 const dx = p2.x - p1.x;
                 const dy = p2.y - p1.y;
                 const len = Math.sqrt(dx * dx + dy * dy);
                 if (len === 0) continue;
-
                 const nx = -dy / len;
                 const ny = dx / len;
-
                 const isOutside = i % (step * 2) === 0;
                 const offsetDist = isOutside ? 60 : -60;
-
                 const featureX = p1.x + nx * offsetDist;
                 const featureY = p1.y + ny * offsetDist;
                 const rotation = Math.atan2(dy, dx) * 180 / Math.PI;
-
                 const type = (i % 3 === 0) ? 'grandstand' : (i % 5 === 0 ? 'tech' : 'light');
-
-                trackFeatures.push({
+                features.push({
                     x: featureX,
                     y: featureY,
                     rotation: rotation,
@@ -168,83 +152,62 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
                 });
             }
         }
+        return features;
+    }, [trackPoints]);
 
-        return (
-            <Group style={{ pointerEvents: 'none' }}>
-                {/* Visual Base - Massive coverage to ensure no edges show during fast tracking */}
-                <rect
-                    x={x - width * 4} y={y - height * 4}
-                    width={width * 9} height={height * 9}
-                    fill="#020617" opacity={0.6}
-                />
+    const TacticalEnvironment = useMemo(() => (
+        <Group style={{ pointerEvents: 'none' }}>
+            {/* Massive Global Backdrop (Static) */}
+            <rect
+                x={-5000} y={-5000}
+                width={15000} height={15000}
+                fill="#020617"
+            />
 
-                {/* Tactical Grid - Massive coverage */}
-                <rect
-                    x={x - width * 4}
-                    y={y - height * 4}
-                    width={width * 9}
-                    height={height * 9}
-                    fill="url(#tacticalGrid)"
-                    opacity={0.9}
-                />
+            {/* Tactical Grid (Static) */}
+            <rect
+                x={-5000} y={-5000}
+                width={15000} height={15000}
+                fill="url(#tacticalGrid)"
+                opacity={0.8}
+            />
 
-                {/* Ambient Intelligence Pulse - Subtly Blue */}
-                <rect
-                    x={x - width * 2} y={y - height * 2}
-                    width={width * 5} height={height * 5}
-                    fill="rgba(59, 130, 246, 0.05)"
-                >
-                    <animate
-                        attributeName="opacity"
-                        values="0.01;0.1;0.01"
-                        dur="8s"
-                        repeatCount="indefinite"
+            {/* Ambient Intelligence Pulse */}
+            <circle cx={500} cy={350} r={2000} fill="rgba(59, 130, 246, 0.03)">
+                <animate attributeName="opacity" values="0.01;0.05;0.01" dur="10s" repeatCount="indefinite" />
+            </circle>
+
+            {/* STATIC PROCEDURAL TRACKSIDE FEATURES */}
+            {trackFeatures.map((f, i) => (
+                <Group key={i} transform={`rotate(${f.rotation}, ${f.x}, ${f.y})`}>
+                    <rect
+                        x={f.x - f.w / 2} y={f.y - f.h / 2} width={f.w} height={f.h}
+                        fill={f.type === 'grandstand' ? '#1e293b' : (f.type === 'tech' ? '#0f172a' : '#334155')}
+                        stroke={f.type === 'light' ? '#facc15' : '#0ea5e9'}
+                        strokeWidth={f.type === 'light' ? 2 : 0.5}
+                        strokeOpacity={0.6}
+                        opacity={0.4}
                     />
-                </rect>
+                </Group>
+            ))}
 
-                {/* PROCEDURAL TRACKSIDE FEATURES */}
-                {trackFeatures.map((f, i) => (
-                    <Group key={i} transform={`rotate(${f.rotation}, ${f.x}, ${f.y})`}>
-                        <rect
-                            x={f.x - f.w / 2}
-                            y={f.y - f.h / 2}
-                            width={f.w}
-                            height={f.h}
-                            fill={f.type === 'grandstand' ? '#1e293b' : (f.type === 'tech' ? '#0f172a' : '#334155')}
-                            stroke={f.type === 'light' ? '#facc15' : '#0ea5e9'}
-                            strokeWidth={f.type === 'light' ? 2 : 0.5}
-                            strokeOpacity={f.type === 'light' ? 0.6 : 0.3}
-                            opacity={0.5}
-                        />
-                        {/* Detail lines for grandstands */}
-                        {f.type === 'grandstand' && (
-                            <line
-                                x1={f.x - f.w / 2} y1={f.y}
-                                x2={f.x + f.w / 2} y2={f.y}
-                                stroke="#0ea5e9" strokeWidth={0.5} opacity={0.2}
-                            />
-                        )}
-                    </Group>
-                ))}
-
-                {/* Coordinate Crosshairs */}
-                {[0.25, 0.5, 0.75].map(v => (
-                    <Fragment key={v}>
-                        <line
-                            x1={minX + trackW * v} y1={minY - 5000}
-                            x2={minX + trackW * v} y2={maxY + 5000}
-                            stroke="#0ea5e9" strokeWidth={1} strokeDasharray="5,5" opacity={0.15}
-                        />
-                        <line
-                            x1={minX - 5000} y1={minY + trackH * v}
-                            x2={maxX + 5000} y2={minY + trackH * v}
-                            stroke="#0ea5e9" strokeWidth={1} strokeDasharray="5,5" opacity={0.15}
-                        />
-                    </Fragment>
-                ))}
-            </Group>
-        );
-    }, [trackBounds, vbX, vbY, vbWidth, vbHeight, trackPoints]);
+            {/* Static Coordinate Crosshairs */}
+            {[0.25, 0.5, 0.75].map(v => (
+                <Fragment key={v}>
+                    <line
+                        x1={trackBounds.minX + (trackBounds.maxX - trackBounds.minX) * v} y1={-5000}
+                        x2={trackBounds.minX + (trackBounds.maxX - trackBounds.minX) * v} y2={5000}
+                        stroke="#0ea5e9" strokeWidth={1} strokeDasharray="5,5" opacity={0.1}
+                    />
+                    <line
+                        x1={-5000} y1={trackBounds.minY + (trackBounds.maxY - trackBounds.minY) * v}
+                        x2={5000} y2={trackBounds.minY + (trackBounds.maxY - trackBounds.minY) * v}
+                        stroke="#0ea5e9" strokeWidth={1} strokeDasharray="5,5" opacity={0.1}
+                    />
+                </Fragment>
+            ))}
+        </Group>
+    ), [trackBounds, trackFeatures]);
 
 
 
@@ -255,7 +218,10 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
             width={width}
             height={height}
             animate={{ viewBox: `${vbX} ${vbY} ${vbWidth} ${vbHeight}` }}
-            transition={{ type: 'spring', stiffness: 50, damping: 20 }}
+            transition={{
+                duration: 1.2,
+                ease: [0.22, 1, 0.36, 1], // Quart easeOut for cinematic feel
+            }}
         >
             <defs>
                 <filter id="carGlow" x="-50%" y="-50%" width="200%" height="200%">
@@ -320,8 +286,8 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
             </defs>
 
             <Group>
-                {/* Background Tactical Layer - REMOVED MASK to ensure visibility on zoom */}
-                {TacticalUnderlay}
+                {/* Optimized Static Environment */}
+                {TacticalEnvironment}
 
                 {/* Vignette Layer Apply only to weather or as a separate overlay if desired */}
                 {/* For now, we want the grid to be constant and everywhere */}
