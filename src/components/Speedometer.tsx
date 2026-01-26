@@ -26,6 +26,8 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
     const throttle = currentFrame?.throttle || 0;
     const brake = currentFrame?.brake || 0;
     const gear = currentFrame?.gear || 0; // Assuming 0=N, 1-8=Gears
+    const drs = currentFrame?.drs;
+    const isPit = currentFrame?.is_pit;
 
     // Minimum visual thresholds for visibility
     const vizThrottle = throttle > 1 ? Math.max(throttle, 5) : throttle;
@@ -319,14 +321,14 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                                         x={60 + offset}
                                         y={45}
                                         textAnchor="middle"
-                                        fill={isActive ? "#e2e8f0" : "#64748b"}
+                                        fill={isActive ? (isPit ? "#facc15" : "#e2e8f0") : "#64748b"}
                                         fontSize={isActive ? 24 : 12}
                                         fontWeight={isActive ? 900 : 700}
                                         fontFamily="Outfit"
                                         style={{
                                             opacity: isActive ? 1 : Math.max(0, 0.4 - dist * 0.2),
                                             transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                                            filter: isActive ? 'drop-shadow(0 0 8px rgba(226, 232, 240, 0.3))' : 'none'
+                                            filter: isActive ? `drop-shadow(0 0 8px ${isPit ? 'rgba(250, 204, 21, 0.3)' : 'rgba(226, 232, 240, 0.3)'})` : 'none'
                                         }}
                                     >
                                         {g}
@@ -334,6 +336,33 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
                                 )
                             })}
                         </g>
+
+                        {/* DRS / PIT Status Labels (Near Gear) */}
+                        <Group top={55} left={60}>
+                            {isPit ? (
+                                <text
+                                    textAnchor="middle"
+                                    fill="#facc15"
+                                    fontSize={10}
+                                    fontWeight={900}
+                                    fontFamily="JetBrains Mono"
+                                    style={{ letterSpacing: '0.1em' }}
+                                >
+                                    PIT LANE
+                                </text>
+                            ) : drs === 1 ? (
+                                <text
+                                    textAnchor="middle"
+                                    fill="#22c55e"
+                                    fontSize={10}
+                                    fontWeight={900}
+                                    fontFamily="JetBrains Mono"
+                                    style={{ letterSpacing: '0.1em', filter: 'drop-shadow(0 0 4px rgba(34, 197, 94, 0.4))' }}
+                                >
+                                    DRS ACTIVE
+                                </text>
+                            ) : null}
+                        </Group>
                     </svg>
                 </Group>
 

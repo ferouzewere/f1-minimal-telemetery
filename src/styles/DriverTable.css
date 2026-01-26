@@ -192,15 +192,91 @@
         max-height: 165px;
         /* ~3.5 rows to show scroll potential */
         background: transparent !important;
-        mask-image: linear-gradient(to bottom, 
-            black 0%, 
-            black 70%, 
-            rgba(0,0,0,0.3) 100%
-        );
-        -webkit-mask-image: linear-gradient(to bottom, 
-            black 0%, 
-            black 70%, 
-            rgba(0,0,0,0.3) 100%
-        );
+        mask-image: linear-gradient(to bottom,
+                black 0%,
+                black 70%,
+                rgba(0, 0, 0, 0.3) 100%);
+        -webkit-mask-image: linear-gradient(to bottom,
+                black 0%,
+                black 70%,
+                rgba(0, 0, 0, 0.3) 100%);
     }
+}
+
+/* --- SECTOR PROGRESS & PERFORMANCE --- */
+.sector-progress-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.sector-label {
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: var(--text-secondary);
+    min-width: 20px;
+}
+
+.sector-track {
+    flex: 1;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.sector-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+/* Performance Colors */
+.perf-yellow {
+    color: #facc15;
+}
+
+.sector-fill.perf-yellow {
+    background-color: #facc15;
+}
+
+.perf-green {
+    color: #22c55e;
+}
+
+.sector-fill.perf-green {
+    background-color: #22c55e;
+}
+
+.perf-purple {
+    color: #a855f7;
+}
+
+.sector-fill.perf-purple {
+    background-color: #a855f7;
+    box-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+}
+
+/* Badges */
+.drs-badge,
+.pit-badge {
+    font-size: 0.55rem;
+    font-weight: 900;
+    padding: 1px 4px;
+    border-radius: 2px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+.drs-badge {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.pit-badge {
+    background: rgba(250, 204, 21, 0.2);
+    color: #facc15;
+    border: 1px solid rgba(250, 204, 21, 0.4);
 }

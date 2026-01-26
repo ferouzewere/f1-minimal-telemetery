@@ -10,6 +10,7 @@ export const DriverTable: React.FC = () => {
 
     const trackLength = useRaceStore(state => state.trackLength);
     const sessionBestLap = useRaceStore(state => state.sessionBestLap);
+    const sessionBests = useRaceStore(state => state.sessionBests);
 
     const driverRows = useMemo(() => {
         if (!raceData) return [];
@@ -61,7 +62,32 @@ export const DriverTable: React.FC = () => {
                 stintNumber: currentStint?.stint || 1,
                 gap,
                 sectorProgress: Math.min(100, Math.max(0, sectorProgress)),
-                personalBestLap: pBest
+                personalBestLap: pBest,
+                sectorPerformance: (() => {
+                    const perf: Record<number, 'yellow' | 'green' | 'purple'> = { 1: 'yellow', 2: 'yellow', 3: 'yellow' };
+                    if (!driver.sectorTimes || !driver.sectorTimes[currentFrame.lap]) {
+                        // Check previous lap if current lap sectors aren't done
+                        const prevLap = currentFrame.lap - 1;
+                        if (driver.sectorTimes?.[prevLap]) {
+                            // This logic could be more complex, but let's stick to last completed for now
+                        }
+                    }
+
+                    // Helper to get color for a sector value
+                    const getColor = (s: 's1' | 's2' | 's3', time: number) => {
+                        if (!time || time === Infinity) return 'yellow';
+                        if (time <= sessionBests[s]) return 'purple';
+                        if (time <= driver.personalBests[s]) return 'green';
+                        return 'yellow';
+                    };
+
+                    const currentSectors = driver.sectorTimes?.[currentFrame.lap] || { s1: 0, s2: 0, s3: 0 };
+                    if (currentSectors.s1) perf[1] = getColor('s1', currentSectors.s1);
+                    if (currentSectors.s2) perf[2] = getColor('s2', currentSectors.s2);
+                    // For S3, it's only known at the end of the lap, usually.
+
+                    return perf;
+                })()
             };
         }).sort((a, b) => a.pos - b.pos);
     }, [raceData, currentTime, trackLength, circuitMetadata]);
@@ -114,7 +140,11 @@ export const DriverTable: React.FC = () => {
                                     <td className="td-pos">{driver.pos}</td>
                                     <td className="td-driver">
                                         <div className="driver-cell">
-                                            <span className="abbr">{driver.driver_abbr}</span>
+                                            <span className="abbr">
+                                                {driver.driver_abbr}
+                                                {currentFrame.drs === 1 && <span className="drs-badge">DRS</span>}
+                                                {currentFrame.is_pit && <span className="pit-badge">PIT</span>}
+                                            </span>
                                             <span className="team">{driver.team}</span>
                                         </div>
                                     </td>
@@ -149,10 +179,10 @@ export const DriverTable: React.FC = () => {
                                     </td>
                                     <td className="td-sect">
                                         <div className="sector-progress-container">
-                                            <span className={`sector-label s${sector}`}>S{sector}</span>
+                                            <span className={`sector-label s${sector} perf-${driver.sectorPerformance[sector]}`}>S{sector}</span>
                                             <div className="sector-track">
                                                 <div
-                                                    className={`sector-fill s${sector}`}
+                                                    className={`sector-fill s${sector} perf-${driver.sectorPerformance[sector]}`}
                                                     style={{ width: `${sectorProgress}%` }}
                                                 ></div>
                                             </div>

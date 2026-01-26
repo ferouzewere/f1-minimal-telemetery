@@ -44,6 +44,8 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 .hud-overlay-layer {
@@ -82,6 +84,13 @@ body {
   max-width: 45vw;
   display: flex;
   flex-direction: column;
+}
+
+.hud-top-left {
+  top: 4.5rem;
+  left: 1.5rem;
+  width: 320px;
+  z-index: 50;
 }
 
 .hud-bottom-left {
@@ -718,26 +727,26 @@ button,
 
 /* --- CENTERED GHOST PILL (TOP BAR) --- */
 .hud-top-center-pill {
-  top: 1rem;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
+  top: 1.5rem;
+  left: 1.5rem !important;
+  transform: none !important;
   z-index: 100;
   width: auto !important;
   pointer-events: auto !important;
 }
 
 .hub-capsule.transparent-pill {
-  background: rgba(10, 15, 30, 0.1) !important;
+  background: rgba(10, 15, 30, 0.4) !important;
   backdrop-filter: blur(16px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.03) !important;
-  border-radius: 40px !important;
-  padding: 0.5rem 2rem !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 12px !important;
+  padding: 0.6rem 1.2rem !important;
   display: flex !important;
   align-items: center !important;
   gap: 1rem !important;
   letter-spacing: 0.02em;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  box-shadow: 0 0 40px rgba(0, 0, 0, 0.2) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
 }
 
 .hub-capsule.transparent-pill:hover {
@@ -746,23 +755,64 @@ button,
   box-shadow: 0 0 50px rgba(59, 130, 246, 0.1) !important;
 }
 
+.hub-title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
 .hub-title h1 {
   font-family: "Outfit", sans-serif !important;
-  font-size: 0.95rem !important;
+  font-size: 1.1rem !important;
   font-weight: 800 !important;
   text-transform: uppercase;
   margin: 0;
-  line-height: 1;
+  line-height: 1.1;
   color: #fff !important;
+  letter-spacing: 0.05em;
+}
+
+.header-flag-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-flag {
+  width: 28px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.hub-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .hub-title span {
   font-family: "JetBrains Mono", monospace !important;
-  font-size: 0.6rem !important;
+  font-size: 0.75rem !important;
   text-transform: uppercase;
-  letter-spacing: 0.2em;
-  opacity: 0.6;
+  letter-spacing: 0.15em;
+  opacity: 0.7;
   color: var(--accent) !important;
+  line-height: 1;
+}
+
+.circuit-specs {
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 0.65rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.5;
+  color: var(--text-secondary) !important;
 }
 
 @media (max-width: 640px) {
@@ -776,6 +826,8 @@ button,
     gap: 0.5rem !important;
   }
 }
+
+/* .header-flag removed from here as it is now in the main pill */
 
 .hub-capsule {
   padding: 0.4rem 1.2rem !important;
@@ -798,13 +850,214 @@ button,
 .hub-title {
   display: flex !important;
   flex-direction: column !important;
-  align-items: center !important;
-  text-align: center !important;
+  align-items: flex-start !important;
+  text-align: left !important;
   flex: 1;
   /* Take up space to help center between the icon/potential side items */
 }
 
 .hub-capsule.transparent-pill {
-  justify-content: center !important;
-  /* Ensure children are centered within the pill */
+  justify-content: flex-start !important;
+  /* Ensure children are left-aligned within the pill */
+}
+
+
+/* --- WEATHER EFFECTS --- */
+
+.weather-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.rain-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.rain-drop {
+  position: absolute;
+  top: -20px;
+  width: 1px;
+  height: 15px;
+  background: rgba(59, 130, 246, 0.4);
+  animation: fall linear infinite;
+}
+
+@keyframes fall {
+  to {
+    transform: translateY(100vh);
+  }
+}
+
+/* --- WEATHER & STATUS NOTIFICATIONS --- */
+
+.status-notification-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: auto;
+}
+
+.status-notification-item {
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(12px);
+  border-left: 3px solid;
+  padding: 0.5rem 0.8rem;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  max-width: 320px;
+  transition: transform 0.3s ease;
+}
+
+.notif-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.notif-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.notif-glow {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.notif-label {
+  font-family: "Titillium Web", sans-serif;
+  font-weight: 800;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.notif-description {
+  font-family: "Inter", sans-serif;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.1;
+  opacity: 0.8;
+}
+
+.notif-insight {
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.insight-tag {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+}
+
+.insight-text {
+  font-family: "Inter", sans-serif;
+  font-size: 0.65rem;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+  line-height: 1.2;
+}
+
+@media (max-width: 1024px) {
+  .hud-top-left {
+    position: absolute !important;
+    top: auto !important;
+    bottom: calc(50% - 140px) !important;
+    /* Adjusted to avoid overlap with map selector when not focused */
+    left: 1rem !important;
+    width: auto !important;
+    z-index: 2000 !important;
+  }
+
+  .status-notification-item {
+    max-width: 260px;
+    padding: 0.6rem 1rem;
+    background: rgba(15, 23, 42, 0.7);
+  }
+
+  .notif-label {
+    font-size: 0.75rem;
+  }
+
+  .notif-description {
+    font-size: 0.65rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .hud-top-left {
+    top: 7.5rem !important;
+    /* Stack below the header pill on mobile */
+    bottom: auto !important;
+    left: 0.5rem !important;
+    right: 0.5rem !important;
+    width: auto !important;
+  }
+
+  .status-notification-stack {
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .status-notification-item {
+    width: 100%;
+    max-width: 340px;
+    padding: 0.4rem 0.6rem;
+    border-left-width: 2px;
+  }
+
+  .notif-header {
+    gap: 0.3rem;
+  }
+
+  .notif-label {
+    font-size: 0.7rem;
+  }
+
+  .notif-description {
+    font-size: 0.6rem;
+  }
+
+  .notif-insight {
+    margin-top: 0.2rem;
+    padding-top: 0.2rem;
+  }
+
+  .insight-tag {
+    font-size: 0.5rem;
+  }
+
+  .insight-text {
+    font-size: 0.55rem;
+    line-height: 1.1;
+  }
+}
+
+@media (max-width: 768px) {
+  .hud-top-left {
+    top: 45vh !important;
+    /* Position specifically in that tight space */
+    left: 0.5rem !important;
+  }
 }

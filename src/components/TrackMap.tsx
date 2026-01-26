@@ -72,17 +72,20 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height, verticalOffse
 
     const driverPositions = useMemo(() => {
         if (!raceData) return [];
-        return raceData.drivers.map((driver, idx) => {
-            const frame = getInterpolatedFrame(driver.telemetry, currentTime);
+        return raceData.drivers
+            .filter(driver => driver.telemetry && driver.telemetry.length > 0)
+            .map((driver, idx) => {
+                const frame = getInterpolatedFrame(driver.telemetry, currentTime);
 
-            return {
-                abbr: driver.driver_abbr,
-                x: frame.x,
-                y: frame.y,
-                isPit: frame.is_pit,
-                color: driver.team_color || TEAM_COLORS[driver.team] || DEFAULT_COLORS[idx % DEFAULT_COLORS.length]
-            };
-        }).filter(pos => !isNaN(pos.x) && !isNaN(pos.y));
+                return {
+                    abbr: driver.driver_abbr,
+                    x: frame.x,
+                    y: frame.y,
+                    isPit: frame.is_pit,
+                    drs: frame.drs,
+                    color: driver.team_color || TEAM_COLORS[driver.team] || DEFAULT_COLORS[idx % DEFAULT_COLORS.length]
+                };
+            }).filter(pos => !isNaN(pos.x) && !isNaN(pos.y));
     }, [raceData, currentTime]);
 
     const trackBounds = useMemo(() => {
@@ -347,6 +350,67 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height, verticalOffse
                     </Group>
                 )}
 
+                {/* Sector Markers (Enhanced Visibility) */}
+                {circuitMetadata && [1, 2].map(sNum => {
+                    const dist = sNum === 1 ? circuitMetadata.sectors.s1_end : circuitMetadata.sectors.s2_end;
+                    const point = trackPoints.reduce((prev, curr) =>
+                        Math.abs(curr.dist - dist) < Math.abs(prev.dist - dist) ? curr : prev
+                    );
+
+                    // Calculate an offset position "beside" the track
+                    // We'll just shift it upwards and outwards a bit for better clarity
+                    const labelOffsetX = sNum === 1 ? -40 : 40;
+                    const labelOffsetY = -40;
+
+                    return (
+                        <Group key={`sector-marker-${sNum}`}>
+                            {/* Leader Line */}
+                            <line
+                                x1={point.x} y1={point.y}
+                                x2={point.x + labelOffsetX} y2={point.y + labelOffsetY}
+                                stroke="rgba(255, 255, 255, 0.4)"
+                                strokeWidth={1}
+                                strokeDasharray="2,2"
+                            />
+
+                            {/* Marker Point on Track */}
+                            <circle
+                                cx={point.x} cy={point.y}
+                                r={4}
+                                fill="#ffffff"
+                                stroke="#0f172a"
+                                strokeWidth={2}
+                            />
+
+                            {/* Offset Label Group */}
+                            <Group top={point.y + labelOffsetY} left={point.x + labelOffsetX}>
+                                <rect
+                                    x={-15} y={-10}
+                                    width={30} height={20}
+                                    rx={2}
+                                    fill="rgba(15, 23, 42, 0.8)"
+                                    stroke="rgba(255, 255, 255, 0.6)"
+                                    strokeWidth={1}
+                                    style={{ backdropFilter: 'blur(4px)' }}
+                                />
+                                <text
+                                    y={4}
+                                    textAnchor="middle"
+                                    fill="#ffffff"
+                                    fontSize={10}
+                                    fontWeight={800}
+                                    style={{
+                                        fontFamily: 'JetBrains Mono, monospace',
+                                        letterSpacing: '0.05em'
+                                    }}
+                                >
+                                    S{sNum}
+                                </text>
+                            </Group>
+                        </Group>
+                    );
+                })}
+
                 {/* Static Track Layer */}
                 {segments.map((seg, i) => {
                     let trackBaseColor = "#334155";
@@ -443,24 +507,6 @@ export const TrackMap: React.FC<TrackMapProps> = ({ width, height, verticalOffse
                             style={{ zIndex: isFocused ? 100 : 1, cursor: 'pointer' }}
                             onClick={() => setFocusedDriver(isFocused ? null : pos.abbr)}
                         >
-                            {pos.isPit && (
-                                <Group>
-                                    <circle r={15} fill="none" stroke="#facc15" strokeWidth={1} strokeDasharray="2,2">
-                                        <animate attributeName="r" from="10" to="25" dur="1.5s" repeatCount="indefinite" />
-                                        <animate attributeName="opacity" from="1" to="0" dur="1.5s" repeatCount="indefinite" />
-                                    </circle>
-                                    <text
-                                        y={18}
-                                        textAnchor="middle"
-                                        fill="#facc15"
-                                        fontSize={8}
-                                        fontWeight={800}
-                                        style={{ fontFamily: 'JetBrains Mono, monospace', pointerEvents: 'none' }}
-                                    >
-                                        PIT
-                                    </text>
-                                </Group>
-                            )}
                             <circle
                                 r={isFocused ? 10 : 5}
                                 fill={pos.color}

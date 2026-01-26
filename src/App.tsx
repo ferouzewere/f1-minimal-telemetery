@@ -14,7 +14,10 @@ import { SessionSelector } from './components/SessionSelector'
 import { Compass } from './components/Compass'
 import { VehicleStatus } from './components/VehicleStatus'
 import { getInterpolatedFrame } from './utils/interpolation'
+import { WeatherOverlay } from './components/WeatherOverlay'
+import { TrackStatusBanner } from './components/TrackStatusBanner'
 
+import { getFlagUrl } from './utils/countryMapping'
 import { useRaceStore, type DriverData } from './store/useRaceStore'
 import './styles/Copyright.css'
 import './App.css'
@@ -123,15 +126,35 @@ function App() {
         </ParentSize>
       </div>
 
+      {/* LAYER 0.5: Global Weather Effects */}
+      <WeatherOverlay />
+
       {/* LAYER 1: HUD Grid Overlay */}
       <div className="hud-overlay-layer">
 
         {/* Top Center: Mission Control Header (Redesigned Pill) */}
         <header className="hud-panel hud-top-center-pill">
           <div className="hub-capsule transparent-pill" onClick={() => setIsNavOpen(!isNavOpen)}>
+            {circuitMetadata?.location && (
+              <div className="header-flag-container">
+                <img
+                  src={getFlagUrl(circuitMetadata.location) || ''}
+                  alt="Race Country"
+                  className="header-flag"
+                  onError={(e) => (e.currentTarget.style.display = 'none')}
+                />
+              </div>
+            )}
             <div className="hub-title">
               <h1>{raceData?.race_name || 'F1 MONITOR'}</h1>
-              <span>{circuitMetadata?.name || 'TRACK MONITOR'}</span>
+              <div className="hub-subtitle">
+                <span>{circuitMetadata?.name || 'TRACK MONITOR'}</span>
+                {circuitMetadata?.lapLength && (
+                  <span className="circuit-specs">
+                    • {(circuitMetadata.lapLength / 1000).toFixed(3)} KM • {totalLaps || '-'} LAPS
+                  </span>
+                )}
+              </div>
             </div>
 
             <motion.div
@@ -144,6 +167,11 @@ function App() {
             </motion.div>
           </div>
         </header>
+
+        {/* Top Left: Track Status & Weather (shifted down to accommodate header) */}
+        <div className="hud-panel hud-top-left" style={{ top: '7.5rem' }}>
+          <TrackStatusBanner />
+        </div>
 
         {/* Top Right: Leaderboard */}
         <aside className="hud-panel hud-top-right">
