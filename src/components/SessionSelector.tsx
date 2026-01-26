@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MissionManager } from './MissionManager';
+import { getCachedData } from '../utils/db';
 import { useRaceStore } from '../store/useRaceStore';
 import type { CircuitMetadata } from '../store/useRaceStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -71,10 +72,11 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({ isOpen, setIsO
 
     const handleSelectSession = async (circuit: Circuit, session: Session) => {
         setLoading(true);
-        try {
-            const response = await fetch(session.file);
-            const data = await response.json();
+        const cacheKey = `race_${session.id}`;
 
+        try {
+            // 1. Try Cache First
+            const cached = await getCachedData(cacheKey);
             const metadata: CircuitMetadata = {
                 id: circuit.id,
                 name: circuit.name,
@@ -83,7 +85,18 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({ isOpen, setIsO
                 sectors: circuit.sectors
             };
 
-            loadRaceData(data, metadata);
+            if (cached) {
+                console.log("Loading session from cache:", cacheKey);
+                loadRaceData(cached.raceData, metadata);
+                setIsOpen(false);
+                return;
+            }
+
+            // 2. Fallback to Fetch
+            const response = await fetch(session.file);
+            const data = await response.json();
+
+            loadRaceData(data, metadata, cacheKey);
             setIsOpen(false);
         } catch (err) {
             console.error("Failed to load session data:", err);

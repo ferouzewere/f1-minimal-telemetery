@@ -13,6 +13,7 @@ import { PlaybackControls } from './components/PlaybackControls'
 import { SessionSelector } from './components/SessionSelector'
 import { Compass } from './components/Compass'
 import { VehicleStatus } from './components/VehicleStatus'
+import { getCachedData } from './utils/db'
 import { getInterpolatedFrame } from './utils/interpolation'
 import { WeatherOverlay } from './components/WeatherOverlay'
 import { TrackStatusBanner } from './components/TrackStatusBanner'
@@ -56,25 +57,49 @@ function App() {
     }
   }, [focusedDriver]);
 
-  // Initial Load from Manifest
+  // Initial Load from Manifest with Caching
   useEffect(() => {
     if (!raceData) {
-      fetch('/sessions.json')
-        .then(res => res.json())
-        .then(async (manifest) => {
+      const loadInitialData = async () => {
+        try {
+          // 1. Initial Fetch for manifest (needed regardless)
+          const manifestRes = await fetch('/sessions.json');
+          const manifest = await manifestRes.json();
           const defaultCircuit = manifest.circuits[0];
           const defaultSession = defaultCircuit.sessions[0];
-          const res = await fetch(defaultSession.file);
-          const data = await res.json();
+          const cacheKey = `race_${defaultSession.id}`;
+
+          // 2. Try Cache First
+          const cached = await getCachedData(cacheKey);
+          if (cached) {
+            console.log("Loading from cache:", cacheKey);
+            // Load race data but overwrite metadata since we just fetched manifest
+            loadRaceData(cached.raceData, {
+              id: defaultCircuit.id,
+              name: defaultCircuit.name,
+              location: defaultCircuit.location,
+              lapLength: defaultCircuit.lapLength,
+              sectors: defaultCircuit.sectors
+            });
+            return;
+          }
+
+          // 3. Fallback if no cache
+          const sessionRes = await fetch(defaultSession.file);
+          const data = await sessionRes.json();
+
           loadRaceData(data, {
             id: defaultCircuit.id,
             name: defaultCircuit.name,
             location: defaultCircuit.location,
             lapLength: defaultCircuit.lapLength,
             sectors: defaultCircuit.sectors
-          });
-        })
-        .catch(err => console.error("Initial load failed:", err));
+          }, cacheKey);
+        } catch (err) {
+          console.error("Initial load failed:", err);
+        }
+      };
+      loadInitialData();
     }
   }, [loadRaceData, raceData]);
 
