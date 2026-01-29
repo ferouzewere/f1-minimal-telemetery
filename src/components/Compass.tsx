@@ -23,19 +23,18 @@ export const Compass: React.FC<CompassProps> = ({ size }) => {
         if (raceData && focusedDriver) {
             // Get focused driver's current and next position to calculate heading
             const driver = raceData.drivers.find(d => d.driver_abbr === focusedDriver);
-            if (driver) {
+            if (driver && driver.telemetry && driver.telemetry.length > 0) {
                 const currentResult = getInterpolatedFrame(driver.telemetry, currentTime);
                 const nextResult = getInterpolatedFrame(driver.telemetry, currentTime + 0.1);
 
-                const currentFrame = currentResult.frame;
-                const nextFrame = nextResult.frame;
+                if (currentResult.frame && nextResult.frame) {
+                    const dx = nextResult.frame.x - currentResult.frame.x;
+                    const dy = nextResult.frame.y - currentResult.frame.y;
 
-                const dx = nextFrame.x - currentFrame.x;
-                const dy = nextFrame.y - currentFrame.y;
-
-                // Calculate bearing (0° = North, 90° = East)
-                targetBearing = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
-                bearingSource = focusedDriver;
+                    // Calculate bearing (0° = North, 90° = East)
+                    targetBearing = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
+                    bearingSource = focusedDriver;
+                }
             }
         }
 

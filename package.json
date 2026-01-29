@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "bridge": "python scripts/bridge_server.py",
+    "bridge": "python -m uvicorn scripts.bridge_server:app --port 3001 --reload",
     "start": "concurrently \"npm run dev\" \"npm run bridge\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",

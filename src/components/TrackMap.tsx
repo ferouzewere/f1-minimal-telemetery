@@ -12,6 +12,14 @@ interface TrackMapProps {
     verticalOffset?: number;
 }
 
+interface TrackPoint {
+    x: number;
+    y: number;
+    dist: number;
+    isGap: boolean;
+    sector: number;
+}
+
 const TEAM_COLORS: Record<string, string> = {
     'Red Bull Racing': '#3671C6',
     'Ferrari': '#E80020',
@@ -36,8 +44,21 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
     const currentTrackStatus = useRaceStore(state => state.currentTrackStatus);
     const currentWeather = useRaceStore(state => state.currentWeather);
 
+    const trackLayout = useRaceStore(state => state.trackLayout);
+
     // Define track points with sector info (Static per session)
-    const trackPoints = useMemo(() => {
+    const trackPoints = useMemo<TrackPoint[]>(() => {
+        // Use dedicated track layout if available (Live Mode)
+        if (trackLayout && trackLayout.length > 0) {
+            return trackLayout.map(p => ({
+                x: p.x,
+                y: p.y,
+                dist: p.dist,
+                isGap: (p as any).is_gap || false,
+                sector: getSector(p.dist, circuitMetadata)
+            }));
+        }
+
         if (!raceData || !raceData.drivers[0]) return [];
         return raceData.drivers[0].telemetry
             .filter(f => !isNaN(f.x) && !isNaN(f.y))
@@ -45,9 +66,10 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
                 x: f.x,
                 y: f.y,
                 dist: f.dist,
+                isGap: false,
                 sector: getSector(f.dist, circuitMetadata)
             }));
-    }, [raceData, circuitMetadata]);
+    }, [raceData, circuitMetadata, trackLayout]);
 
     // Segment track points for visual distinction (Static per session)
     const segments = useMemo(() => {
@@ -56,12 +78,23 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
         let currentSeg = [trackPoints[0]];
 
         for (let i = 1; i < trackPoints.length; i++) {
-            if (trackPoints[i].sector !== trackPoints[i - 1].sector) {
-                currentSeg.push(trackPoints[i]); // Connect segment
-                segs.push({ sector: trackPoints[i - 1].sector, points: currentSeg });
-                currentSeg = [trackPoints[i]];
+            const p = trackPoints[i];
+            const prev = trackPoints[i - 1];
+
+            // Calculate Euclidean distance to detect unflagged gaps
+            const dx = p.x - prev.x;
+            const dy = p.y - prev.y;
+            const distSq = dx * dx + dy * dy;
+            const isGap = p.isGap || distSq > 40000; // 200^2 = 40000
+
+            if (p.sector !== prev.sector || isGap) {
+                // If it's a gap, we don't connect. If it's just a sector change, we do.
+                if (!isGap) currentSeg.push(p);
+
+                segs.push({ sector: prev.sector, points: currentSeg });
+                currentSeg = [p];
             } else {
-                currentSeg.push(trackPoints[i]);
+                currentSeg.push(p);
             }
         }
         segs.push({ sector: trackPoints[trackPoints.length - 1].sector, points: currentSeg });
@@ -114,8 +147,30 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
         return { x: frame.x, y: frame.y, zoom: 2.2 };
     }, [raceData, focusedDriver, driverFrames, trackBounds]);
 
-    const vbWidth = 1000 / viewport.zoom;
-    const vbHeight = 700 / viewport.zoom;
+    // --- DYNAMIC VIEWPORT CALCULATION (Magic Red Rectangle Fix) ---
+    // Instead of forcing a 1000x700 ratio, we calculate the track's actual footprint
+    // and adjust the viewbox to center it perfectly within the container's aspect ratio.
+    const trackWidth = Math.max(trackBounds.maxX - trackBounds.minX, 100);
+    const trackHeight = Math.max(trackBounds.maxY - trackBounds.minY, 100);
+    const containerAspectRatio = width / height;
+
+    // Padding ensures track is never touching the screen edges
+    const padding = 1.25;
+
+    let baseWidth = trackWidth * padding;
+    let baseHeight = trackHeight * padding;
+
+    if (baseWidth / baseHeight > containerAspectRatio) {
+        // Track is wider than current screen aspect ratio
+        baseHeight = baseWidth / containerAspectRatio;
+    } else {
+        // Track is taller than current screen aspect ratio
+        baseWidth = baseHeight * containerAspectRatio;
+    }
+
+    const vbWidth = baseWidth / viewport.zoom;
+    const vbHeight = baseHeight / viewport.zoom;
+
     const vbX = viewport.x - vbWidth / 2;
     const vbY = (viewport.y - vbHeight / 2) - (verticalOffset / viewport.zoom);
 
@@ -172,8 +227,13 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
                 opacity={0.8}
             />
 
-            {/* Ambient Intelligence Pulse */}
-            <circle cx={500} cy={350} r={2000} fill="rgba(59, 130, 246, 0.03)">
+            {/* Ambient Intelligence Pulse (Centered on Track) */}
+            <circle
+                cx={(trackBounds.minX + trackBounds.maxX) / 2}
+                cy={(trackBounds.minY + trackBounds.maxY) / 2}
+                r={Math.max(trackBounds.maxX - trackBounds.minX, trackBounds.maxY - trackBounds.minY) * 1.5}
+                fill="rgba(59, 130, 246, 0.03)"
+            >
                 <animate attributeName="opacity" values="0.01;0.05;0.01" dur="10s" repeatCount="indefinite" />
             </circle>
 
@@ -211,7 +271,7 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
 
 
 
-    if (!raceData || trackPoints.length === 0) return null;
+    if (!raceData || (trackPoints.length === 0 && !circuitMetadata?.track_path)) return null;
 
     return (
         <motion.svg
@@ -286,6 +346,31 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
             </defs>
 
             <Group>
+                {/* MAGIC RED RECTANGLE - Bounds of our normalization space (1000x700) */}
+                <rect
+                    x={0}
+                    y={0}
+                    width={1000}
+                    height={700}
+                    fill="none"
+                    stroke="#ef4444"
+                    strokeWidth={5}
+                    strokeDasharray="20, 10"
+                    opacity={0.3}
+                />
+
+                {/* TRACK BOUNDS - The actual data limits */}
+                <rect
+                    x={trackBounds.minX}
+                    y={trackBounds.minY}
+                    width={trackBounds.maxX - trackBounds.minX}
+                    height={trackBounds.maxY - trackBounds.minY}
+                    fill="none"
+                    stroke="#0ea5e9"
+                    strokeWidth={1}
+                    opacity={0.2}
+                />
+
                 {/* Optimized Static Environment */}
                 {TacticalEnvironment}
 
@@ -317,79 +402,112 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
                 )}
 
                 {/* Sector Markers (Enhanced Visibility) */}
-                {circuitMetadata && [1, 2].map(sNum => {
-                    const dist = sNum === 1 ? circuitMetadata.sectors.s1_end : circuitMetadata.sectors.s2_end;
-                    const point = trackPoints.reduce((prev, curr) =>
-                        Math.abs(curr.dist - dist) < Math.abs(prev.dist - dist) ? curr : prev
-                    );
+                {circuitMetadata && trackPoints.length > 0 && [1, 2].map(sNum => {
+                    try {
+                        const dist = sNum === 1 ? circuitMetadata.sectors.s1_end : circuitMetadata.sectors.s2_end;
+                        const point = trackPoints.reduce((prev, curr) =>
+                            Math.abs(curr.dist - dist) < Math.abs(prev.dist - dist) ? curr : prev
+                        );
 
-                    // Calculate an offset position "beside" the track
-                    // We'll just shift it upwards and outwards a bit for better clarity
-                    const labelOffsetX = sNum === 1 ? -40 : 40;
-                    const labelOffsetY = -40;
+                        // Calculate an offset position "beside" the track
+                        const labelOffsetX = sNum === 1 ? -40 : 40;
+                        const labelOffsetY = -40;
 
-                    return (
-                        <Group key={`sector-marker-${sNum}`}>
-                            {/* Leader Line */}
-                            <line
-                                x1={point.x} y1={point.y}
-                                x2={point.x + labelOffsetX} y2={point.y + labelOffsetY}
-                                stroke="rgba(255, 255, 255, 0.4)"
-                                strokeWidth={1}
-                                strokeDasharray="2,2"
-                            />
-
-                            {/* Marker Point on Track */}
-                            <circle
-                                cx={point.x} cy={point.y}
-                                r={4}
-                                fill="#ffffff"
-                                stroke="#0f172a"
-                                strokeWidth={2}
-                            />
-
-                            {/* Offset Label Group */}
-                            <Group top={point.y + labelOffsetY} left={point.x + labelOffsetX}>
-                                <rect
-                                    x={-15} y={-10}
-                                    width={30} height={20}
-                                    rx={2}
-                                    fill="rgba(15, 23, 42, 0.8)"
-                                    stroke="rgba(255, 255, 255, 0.6)"
+                        return (
+                            <Group key={`sector-marker-${sNum}`}>
+                                {/* Leader Line */}
+                                <line
+                                    x1={point.x} y1={point.y}
+                                    x2={point.x + labelOffsetX} y2={point.y + labelOffsetY}
+                                    stroke="rgba(255, 255, 255, 0.4)"
                                     strokeWidth={1}
-                                    style={{ backdropFilter: 'blur(4px)' }}
+                                    strokeDasharray="2,2"
                                 />
-                                <text
-                                    y={4}
-                                    textAnchor="middle"
+
+                                {/* Marker Point on Track */}
+                                <circle
+                                    cx={point.x} cy={point.y}
+                                    r={4}
                                     fill="#ffffff"
-                                    fontSize={10}
-                                    fontWeight={800}
-                                    style={{
-                                        fontFamily: 'JetBrains Mono, monospace',
-                                        letterSpacing: '0.05em'
-                                    }}
-                                >
-                                    S{sNum}
-                                </text>
+                                    stroke="#0f172a"
+                                    strokeWidth={2}
+                                />
+
+                                {/* Offset Label Group */}
+                                <Group top={point.y + labelOffsetY} left={point.x + labelOffsetX}>
+                                    <rect
+                                        x={-15} y={-10}
+                                        width={30} height={20}
+                                        rx={2}
+                                        fill="rgba(15, 23, 42, 0.8)"
+                                        stroke="rgba(255, 255, 255, 0.6)"
+                                        strokeWidth={0.5}
+                                    />
+                                    <text
+                                        dy=".33em"
+                                        fontSize={10}
+                                        fill="white"
+                                        textAnchor="middle"
+                                        style={{
+                                            fontFamily: 'JetBrains Mono, monospace',
+                                            letterSpacing: '0.05em'
+                                        }}
+                                    >
+                                        S{sNum}
+                                    </text>
+                                </Group>
                             </Group>
-                        </Group>
-                    );
+                        );
+                    } catch (e) { return null; }
                 })}
 
-                {/* Static Track Layer */}
-                {segments.map((seg, i) => {
-                    let trackBaseColor = "#334155";
-                    let filter = undefined;
+                {/* Primary High-fidelity Track Path (from Provisioning) */}
+                {circuitMetadata?.track_path && (
+                    <Group>
+                        {/* Outer Border / Glow */}
+                        <path
+                            d={circuitMetadata.track_path}
+                            fill="none"
+                            stroke="#1e293b"
+                            strokeWidth={18}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            opacity={0.6}
+                        />
+                        {/* Main Surface */}
+                        <path
+                            d={circuitMetadata.track_path}
+                            fill="none"
+                            stroke={
+                                currentTrackStatus?.status === "2" ? "#facc15" : // Yellow
+                                    currentTrackStatus?.status === "5" ? "#ef4444" : // Red
+                                        currentTrackStatus?.status === "4" ? "#94a3b8" : // SC
+                                            "#334155" // Normal
+                            }
+                            strokeWidth={14}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            style={{ transition: 'stroke 0.5s ease' }}
+                        />
+                        {/* Center Inlay Line */}
+                        <path
+                            d={circuitMetadata.track_path}
+                            fill="none"
+                            stroke="#0f172a"
+                            strokeWidth={10}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            opacity={0.8}
+                        />
+                    </Group>
+                )}
 
-                    if (currentTrackStatus?.status === "2") { // Yellow flag
-                        trackBaseColor = "#facc15";
-                        filter = "url(#yellowFlagGlow)";
-                    } else if (currentTrackStatus?.status === "4" || currentTrackStatus?.status === "6") { // SC / VSC
-                        trackBaseColor = "#94a3b8";
-                    } else if (currentTrackStatus?.status === "5") { // Red flag
-                        trackBaseColor = "#ef4444";
-                    }
+                {/* Overlay Dynamic Segments (If telemetry available) */}
+                {segments.length > 0 && segments.map((seg, i) => {
+                    let trackBaseColor = "#334155";
+                    if (currentTrackStatus?.status === "2") trackBaseColor = "#facc15";
+                    else if (currentTrackStatus?.status === "4" || currentTrackStatus?.status === "6") trackBaseColor = "#94a3b8";
+                    else if (currentTrackStatus?.status === "5") trackBaseColor = "#ef4444";
 
                     return (
                         <LinePath
@@ -398,29 +516,15 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
                             x={(d: any) => d.x}
                             y={(d: any) => d.y}
                             stroke={trackBaseColor}
-                            strokeOpacity={currentTrackStatus?.status ? 0.8 : 0.4}
+                            strokeOpacity={0} // Invisible but kept for consistent hover/interaction
                             strokeWidth={14}
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             curve={curveCardinal}
-                            style={{
-                                filter,
-                                transition: 'stroke 0.5s ease, stroke-opacity 0.5s ease'
-                            }}
                         />
                     );
                 })}
 
-                <LinePath
-                    data={trackPoints}
-                    x={(d: any) => d.x}
-                    y={(d: any) => d.y}
-                    stroke="#0f172a"
-                    strokeWidth={10}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    curve={curveCardinal}
-                />
 
                 {/* Leader Ghost Layer (for comparison) */}
                 {(() => {
@@ -469,7 +573,7 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
                                 style={{
                                     filter: isFocused ? 'url(#carGlow)' : 'none',
                                     opacity: isFocused ? 1 : 0.6,
-                                    transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
+                                    transition: 'r 0.5s ease-out'
                                 }}
                             />
                             {(isFocused || viewport.zoom > 1.5) && (

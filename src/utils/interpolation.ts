@@ -49,9 +49,16 @@ export const getInterpolatedFrame = (
     telemetry: TelemetryFrame[],
     currentTime: number,
     hintIndex: number = 0
-): { frame: TelemetryFrame; index: number } => {
-    if (telemetry.length === 0) throw new Error("Empty telemetry");
+): { frame: TelemetryFrame | null; index: number } => {
+    if (telemetry.length === 0) {
+        if (Math.random() < 0.001) console.warn('[Interpolation] No telemetry data available');
+        return { frame: null, index: 0 };
+    }
     if (telemetry.length === 1) return { frame: telemetry[0], index: 0 };
+
+    if (Math.random() < 0.001) {
+        console.log(`[Interpolation] Searching for ${new Date(currentTime).toISOString()} in ${telemetry.length} frames (Range: ${new Date(telemetry[0].t).toISOString()} to ${new Date(telemetry[telemetry.length - 1].t).toISOString()})`);
+    }
 
     let index = -1;
 
@@ -87,4 +94,69 @@ export const getInterpolatedFrame = (
         frame: interpolateFrames(telemetry[index], telemetry[index + 1], currentTime),
         index
     };
+};
+
+/**
+ * Projects a raw (x, y) point onto the nearest segment of the track layout.
+ * This ensures cars stay on the track regardless of telemetry jitter.
+ */
+export const snapToTrack = (
+    rawX: number,
+    rawY: number,
+    trackLayout: { x: number, y: number }[]
+): { x: number, y: number } => {
+    if (trackLayout.length < 2) return { x: rawX, y: rawY };
+
+    let minSqDist = Infinity;
+    let bestX = rawX;
+    let bestY = rawY;
+
+    // To improve performance, we only check every Nth point first to find the general area
+    const step = Math.max(1, Math.floor(trackLayout.length / 50));
+    let startIdx = 0;
+
+    for (let i = 0; i < trackLayout.length; i += step) {
+        const dx = rawX - trackLayout[i].x;
+        const dy = rawY - trackLayout[i].y;
+        const sqDist = dx * dx + dy * dy;
+        if (sqDist < minSqDist) {
+            minSqDist = sqDist;
+            startIdx = i;
+        }
+    }
+
+    // Now search locally around the best candidate
+    const searchRange = step * 2;
+    const searchStart = Math.max(0, startIdx - searchRange);
+    const searchEnd = Math.min(trackLayout.length - 1, startIdx + searchRange);
+
+    minSqDist = Infinity;
+    for (let i = searchStart; i < searchEnd; i++) {
+        const p1 = trackLayout[i];
+        const p2 = trackLayout[i + 1];
+
+        // Project point onto segment p1-p2
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const l2 = dx * dx + dy * dy;
+        if (l2 === 0) continue;
+
+        let t = ((rawX - p1.x) * dx + (rawY - p1.y) * dy) / l2;
+        t = Math.max(0, Math.min(1, t)); // Constrain to segment
+
+        const projX = p1.x + t * dx;
+        const projY = p1.y + t * dy;
+
+        const ddx = rawX - projX;
+        const ddy = rawY - projY;
+        const sqDist = ddx * ddx + ddy * ddy;
+
+        if (sqDist < minSqDist) {
+            minSqDist = sqDist;
+            bestX = projX;
+            bestY = projY;
+        }
+    }
+
+    return { x: bestX, y: bestY };
 };

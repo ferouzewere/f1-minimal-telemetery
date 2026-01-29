@@ -27,12 +27,10 @@ export const DriverTable: React.FC = () => {
     const leaderAbbr = useRaceStore(state => state.leaderAbbr);
 
     const driverRows = useMemo<DriverRow[]>(() => {
-        if (!raceData || !leaderAbbr) return [];
+        if (!raceData) return [];
 
-        const leaderFrame = driverFrames[leaderAbbr];
-        if (!leaderFrame) return [];
-
-        const leaderDist = (leaderFrame.lap - 1) * trackLength + leaderFrame.dist;
+        const leaderFrame = leaderAbbr ? driverFrames[leaderAbbr] : null;
+        const leaderDist = leaderFrame ? (leaderFrame.lap - 1) * trackLength + leaderFrame.dist : 0;
 
         // Calculate positions by sorting
         const positions = raceData.drivers
@@ -186,17 +184,17 @@ export const DriverTable: React.FC = () => {
                                         </td>
                                         <td className="td-tyre">
                                             <div className="tyre-cell">
-                                                <span className={`tyre-dot ${currentFrame.compound?.toLowerCase()}`}></span>
-                                                <span className="age">{currentFrame.tyre_age}</span>
+                                                <span className={`tyre-dot ${(currentFrame.compound || 'UNKNOWN').toLowerCase()}`}></span>
+                                                <span className="age">{currentFrame.tyre_age || '?'}</span>
                                             </div>
                                         </td>
                                         <td className="td-gap">
-                                            {driver.pos === 1 ? 'LEADER' : `+${Math.round((Number(gap) || 0) * 10) / 10}m`}
+                                            {driver.pos === 1 ? 'LEADER' : `+${Math.round((Number(gap) || 0) * 1) / 1}m`}
                                         </td>
                                         <td className={`td-last ${(() => {
                                             const lastLapNum = currentFrame.lap - 1;
                                             const time = driver.lapTimes?.[lastLapNum];
-                                            if (!time) return '';
+                                            if (!time || time === Infinity) return '';
                                             if (time <= sessionBestLap) return 'purple';
                                             if (time <= driver.personalBestLap) return 'green';
                                             return '';
@@ -204,7 +202,7 @@ export const DriverTable: React.FC = () => {
                                             {(() => {
                                                 const lastLapNum = currentFrame.lap - 1;
                                                 const time = driver.lapTimes?.[lastLapNum];
-                                                if (!time) return '---';
+                                                if (!time || time === Infinity) return '---';
                                                 const mins = Math.floor(time / 60000);
                                                 const secs = ((time % 60000) / 1000).toFixed(3);
                                                 return `${mins}:${secs.padStart(6, '0')}`;

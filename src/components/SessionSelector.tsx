@@ -50,10 +50,21 @@ interface SessionSelectorProps {
 export const SessionSelector = ({ isOpen, setIsOpen }: SessionSelectorProps) => {
     const [manifest, setManifest] = useState<Manifest | null>(null);
     const [loading, setLoading] = useState(false);
-    const [view, setView] = useState<'selection' | 'management'>('selection');
+    const [view, setView] = useState<'selection' | 'management' | 'live'>('selection');
+    const [openF1Sessions, setOpenF1Sessions] = useState<any[]>([]);
     const loadRaceData = useRaceStore(state => state.loadRaceData);
+    const startLiveSession = useRaceStore(state => state.startLiveSession);
     const currentCircuit = useRaceStore(state => state.circuitMetadata);
     const raceData = useRaceStore(state => state.raceData);
+
+    useEffect(() => {
+        if (isOpen && view === 'live') {
+            fetch('http://localhost:3001/openf1/sessions?year=2024')
+                .then(res => res.json())
+                .then(setOpenF1Sessions)
+                .catch(err => console.error("Failed to load OpenF1 sessions:", err));
+        }
+    }, [isOpen, view]);
 
     useEffect(() => {
         if (isOpen) {
@@ -82,7 +93,8 @@ export const SessionSelector = ({ isOpen, setIsOpen }: SessionSelectorProps) => 
                 name: circuit.name,
                 location: circuit.location,
                 lapLength: circuit.lapLength,
-                sectors: circuit.sectors
+                sectors: circuit.sectors,
+                track_path: circuit.track_path
             };
 
             if (cached) {
@@ -125,6 +137,15 @@ export const SessionSelector = ({ isOpen, setIsOpen }: SessionSelectorProps) => 
                             transition={{ type: "spring", damping: 25, stiffness: 300 }}
                         >
                             <div className="selector-header">
+                                {loading && (
+                                    <div className="provisioning-overlay">
+                                        <div className="scanner-line"></div>
+                                        <div className="provisioning-status">
+                                            <span className="blink">ESTABLISHING DOWNLINK...</span>
+                                            <span className="subtext">PROVISIONING MISSION METADATA</span>
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="header-top-row">
                                     <div className="header-title">
                                         <span className="accent-line" />
@@ -162,6 +183,13 @@ export const SessionSelector = ({ isOpen, setIsOpen }: SessionSelectorProps) => 
                                         </svg>
                                         SYSTEM MGMT
                                     </button>
+                                    <button
+                                        className={`tab-btn ${view === 'live' ? 'active live-glow' : ''}`}
+                                        onClick={() => setView('live')}
+                                    >
+                                        <div className="live-indicator-small" />
+                                        LIVE DOWNLINK
+                                    </button>
                                 </div>
                             </div>
 
@@ -177,6 +205,70 @@ export const SessionSelector = ({ isOpen, setIsOpen }: SessionSelectorProps) => 
                                         currentSessions={manifest?.circuits || []}
                                         onRefresh={refreshManifest}
                                     />
+                                ) : view === 'live' ? (
+                                    <div className="openf1-list">
+                                        {openF1Sessions.slice().reverse().map(s => (
+                                            <button
+                                                key={s.session_key}
+                                                className="live-session-row"
+                                                onClick={async () => {
+                                                    // 1. Provision the session (Bounds, Path, Lineup)
+                                                    setLoading(true);
+                                                    try {
+                                                        console.log(`[SessionSelector] Starting provision for session ${s.session_key}...`);
+                                                        const controller = new AbortController();
+                                                        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+                                                        const pResp = await fetch(`http://localhost:3001/openf1/provision?session_key=${s.session_key}`, { signal: controller.signal });
+                                                        clearTimeout(timeoutId);
+
+                                                        if (!pResp.ok) {
+                                                            throw new Error(`Provision failed: ${pResp.status} ${pResp.statusText}`);
+                                                        }
+
+                                                        const provisioned = await pResp.json();
+                                                        console.log(`[SessionSelector] Provision complete:`, {
+                                                            drivers: provisioned.drivers?.length || 0,
+                                                            track_layout: provisioned.track_layout?.length || 0,
+                                                            track_path: !!provisioned.track_path
+                                                        });
+
+                                                        // 2. Try to match with local manifest for static config (sectors, etc)
+                                                        const matchedCircuit = manifest?.circuits.find(c =>
+                                                            s.location.toLowerCase().includes(c.location.toLowerCase()) ||
+                                                            c.location.toLowerCase().includes(s.location.toLowerCase())
+                                                        );
+
+                                                        // 3. Start high-fidelity live stream
+                                                        startLiveSession(s.session_key, {
+                                                            id: `openf1-${s.session_key}`,
+                                                            name: `${s.year} ${s.location} ${s.session_name}`,
+                                                            location: s.location,
+                                                            lapLength: matchedCircuit?.lapLength || 5000,
+                                                            sectors: matchedCircuit?.sectors || { s1_end: 1500, s2_end: 3500 },
+                                                            track_path: provisioned.track_path
+                                                        }, {
+                                                            ...provisioned,
+                                                            session_name: s.session_name,
+                                                            location: s.location
+                                                        });
+                                                        setIsOpen(false);
+                                                    } catch (err: any) {
+                                                        console.error("Live provisioning failed:", err);
+                                                        alert(`Failed to connect to session: ${err.message || 'Unknown error'}. Please try again or select a different session.`);
+                                                    } finally {
+                                                        setLoading(false);
+                                                    }
+                                                }}
+                                            >
+                                                <div className="live-session-info">
+                                                    <span className="live-location">{s.location.toUpperCase()}</span>
+                                                    <span className="live-name">{s.session_name}</span>
+                                                </div>
+                                                <div className="live-status-tag">CONNECT</div>
+                                            </button>
+                                        ))}
+                                    </div>
                                 ) : (
                                     <div className="circuit-grid">
                                         {manifest?.circuits.map(circuit => (

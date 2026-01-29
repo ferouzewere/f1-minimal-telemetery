@@ -118,14 +118,14 @@ def fetch_and_add_race(year, race_name, lap_count=5):
                     new_pt = {
                         't': curr_t,
                         'lap': int(lap['LapNumber']),
-                        'dist': round(float(row['Distance']) + total_dist_so_far, 1),
+                        'dist': float(row['Distance']) + total_dist_so_far,
                         'speed': curr_speed,
                         'rpm': int(row['RPM']) if 'RPM' in row else 0,
                         'gear': int(row['nGear']),
                         'throttle': int(row['Throttle']),
                         'brake': int(row['Brake']),
                         'drs': int(row['DRS']) if 'DRS' in row else 0,
-                        'ax': round(ax, 2)
+                        'ax': ax
                     }
                     
                     time_diffs = (pos['Time'] - row['Time']).abs()
@@ -170,8 +170,8 @@ def fetch_and_add_race(year, race_name, lap_count=5):
         for d in all_drivers_data:
             for p in d['telemetry']:
                 if 'x' in p:
-                    p['x'] = round((p['x'] - min_x) * scale + ox, 1)
-                    p['y'] = round((p['y'] - min_y) * scale + oy, 1)
+                    p['x'] = (p['x'] - min_x) * scale + ox
+                    p['y'] = (p['y'] - min_y) * scale + oy
 
     race_data = {
         'race_name': f"{year} {race_name} GP (Intelligence Data)",
@@ -194,18 +194,45 @@ def fetch_and_add_race(year, race_name, lap_count=5):
             manifest = json.load(f)
         
         # 6.1 Generate SVG Path (Thumbnail)
+        import math
         svg_path = ""
         if all_drivers_data:
             ref_tel = all_drivers_data[0]['telemetry']
             # Get first lap points only
             first_lap = [p for p in ref_tel if p['lap'] == ref_tel[0]['lap']]
             if len(first_lap) > 10:
-                svg_points = []
-                for i, p in enumerate(first_lap):
-                    if i % 10 == 0 or i == len(first_lap)-1: # Subsample for small path string
-                        cmd = "M" if i == 0 else "L"
-                        svg_points.append(f"{cmd}{p['x']:.1f} {p['y']:.1f}")
-                svg_path = "".join(svg_points)
+                # Subsample slightly first to clean jitters
+                step = max(1, len(first_lap) // 1500)
+                sampled = first_lap[::step]
+                
+                # --- DYNAMIC SMOOTHING (Catmull-Rom) ---
+                smoothed_points = []
+                n = len(sampled)
+                # Check if it's a closed loop
+                is_closed = math.hypot(sampled[0]['x']-sampled[-1]['x'], sampled[0]['y']-sampled[-1]['y']) < 50
+                
+                for i in range(n):
+                    p0 = sampled[(i - 1) % n] if is_closed else sampled[max(0, i-1)]
+                    p1 = sampled[i]
+                    p2 = sampled[(i + 1) % n] if is_closed else sampled[min(n-1, i+1)]
+                    p3 = sampled[(i + 2) % n] if is_closed else sampled[min(n-1, i+2)]
+                    
+                    for t_idx in range(4): # 4 interpolation points per segment
+                        t = t_idx / 4
+                        t2, t3 = t*t, t*t*t
+                        f1 = -0.5*t3 + t2 - 0.5*t
+                        f2 =  1.5*t3 - 2.5*t2 + 1.0
+                        f3 = -1.5*t3 + 2.0*t2 + 0.5*t
+                        f4 =  0.5*t3 - 0.5*t2
+                        
+                        sx = p0['x']*f1 + p1['x']*f2 + p2['x']*f3 + p3['x']*f4
+                        sy = p0['y']*f1 + p1['y']*f2 + p2['y']*f3 + p3['y']*f4
+                        
+                        cmd = "M" if i == 0 and t_idx == 0 else "L"
+                        smoothed_points.append(f"{cmd}{sx:.3f} {sy:.3f}")
+                
+                svg_path = "".join(smoothed_points)
+                if is_closed: svg_path += "Z"
 
         # 6.2 Extract Race Metadata for Manifest
         metadata = {}

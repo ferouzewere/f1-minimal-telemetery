@@ -120,8 +120,8 @@ def fetch_circuit(year, race_name, lap_count=5, drivers_to_fetch=None):
                     c_idx = time_diffs.idxmin() if not pos.empty else None
                     if c_idx is not None:
                         p_row = pos.loc[c_idx]
-                        new_pt['x'] = round(float(p_row['X']), 0)
-                        new_pt['y'] = round(float(p_row['Y']), 0)
+                        new_pt['x'] = float(p_row['X'])
+                        new_pt['y'] = float(p_row['Y'])
                     else:
                         new_pt['x'] = 0
                         new_pt['y'] = 0
@@ -172,8 +172,8 @@ def fetch_circuit(year, race_name, lap_count=5, drivers_to_fetch=None):
         
         for d in all_drivers_data:
             for p in d['telemetry']:
-                p['x'] = round((p['x'] - min_x) * scale + ox, 1)
-                p['y'] = round((p['y'] - min_y) * scale + oy, 1)
+                p['x'] = (p['x'] - min_x) * scale + ox
+                p['y'] = (p['y'] - min_y) * scale + oy
 
     # Save
     safe_name = race_name.replace(' ', '_')

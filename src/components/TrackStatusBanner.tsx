@@ -160,8 +160,9 @@ export const TrackStatusBanner: React.FC = () => {
     useEffect(() => {
         if (!raceData || !raceData.drivers[0]) return;
         const leader = raceData.drivers[0];
-        const frame = getInterpolatedFrame(leader.telemetry, currentTime).frame;
-        const currentLap = frame.lap;
+        const frameResult = getInterpolatedFrame(leader.telemetry, currentTime);
+        if (!frameResult.frame) return;
+        const currentLap = frameResult.frame.lap;
 
         if (currentLap > lastLapRef.current) {
             addNotification({

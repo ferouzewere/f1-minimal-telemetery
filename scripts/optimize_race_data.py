@@ -34,9 +34,9 @@ def optimize_race_data(input_path, output_path):
                     # Optional: Add x, y only if used (assuming map uses them)
                     # Rounding to 1 decimal place is usually sufficient for screen coords
                     if 'x' in point:
-                        new_point['x'] = round(point['x'], 1)
+                        new_point['x'] = round(point['x'], 3)
                     if 'y' in point:
-                        new_point['y'] = round(point['y'], 1)
+                        new_point['y'] = round(point['y'], 3)
                         
                     # Include other necessary fields if they exist and are needed
                     # For minimal telemetry, maybe we don't need gear/throttle/brake for every point if not visualized

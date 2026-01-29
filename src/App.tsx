@@ -17,6 +17,8 @@ import { getCachedData } from './utils/db'
 import { WeatherOverlay } from './components/WeatherOverlay'
 import { TrackStatusBanner } from './components/TrackStatusBanner'
 import { IntegratedGauge } from './components/IntegratedGauge'
+import { LiveDataSynchronizer } from './components/LiveDataSynchronizer'
+import { EnvironmentStats } from './components/EnvironmentStats'
 
 import { getFlagUrl } from './utils/countryMapping'
 import { useRaceStore, type DriverData } from './store/useRaceStore'
@@ -79,7 +81,8 @@ function App() {
               name: defaultCircuit.name,
               location: defaultCircuit.location,
               lapLength: defaultCircuit.lapLength,
-              sectors: defaultCircuit.sectors
+              sectors: defaultCircuit.sectors,
+              track_path: defaultCircuit.track_path
             });
             return;
           }
@@ -93,7 +96,8 @@ function App() {
             name: defaultCircuit.name,
             location: defaultCircuit.location,
             lapLength: defaultCircuit.lapLength,
-            sectors: defaultCircuit.sectors
+            sectors: defaultCircuit.sectors,
+            track_path: defaultCircuit.track_path
           }, cacheKey);
         } catch (err) {
           console.error("Initial load failed:", err);
@@ -124,15 +128,57 @@ function App() {
     const loop = (now: number) => {
       const delta = now - lastTimestamp;
       lastTimestamp = now;
-      const current = useRaceStore.getState().currentTime;
-      const speed = useRaceStore.getState().playSpeed;
+
+      const state = useRaceStore.getState();
+      const current = state.currentTime;
+      const speed = state.playSpeed;
+      const isLive = state.isLive;
+      const lastLiveDate = state.lastLiveDate;
+
       let nextTime = current + (delta * speed);
-      if (nextTime >= raceDuration) {
-        nextTime = raceDuration;
-        setIsPlaying(false);
-        setCurrentTime(nextTime);
-        return;
+
+      if (isLive) {
+        if (lastLiveDate) {
+          // Normalize date string to ensure UTC parsing
+          const utcDateStr = lastLiveDate.includes('Z') || lastLiveDate.includes('+')
+            ? lastLiveDate
+            : `${lastLiveDate}Z`;
+
+          const serverTime = new Date(utcDateStr).getTime();
+          const bufferMs = 3000;
+          const targetTime = serverTime - bufferMs;
+
+          // If historical, don't jump to live edge. Just flow.
+          if (state.isHistorical) {
+            if (current === 0) {
+              // Initial jump to start of data (back 15 mins from current edge)
+              nextTime = serverTime - 15 * 60 * 1000;
+            }
+            if (nextTime > serverTime) nextTime = serverTime;
+          } else {
+            // Truly live sync logic
+            if (current === 0 || nextTime < targetTime - 15000 || nextTime > serverTime) {
+              console.log(`[Playback] Syncing clock to live stream: ${new Date(targetTime).toISOString()}`);
+              nextTime = targetTime;
+            } else if (nextTime > targetTime) {
+              nextTime = targetTime;
+            }
+          }
+        } else {
+          // Waiting for first data packet
+          nextTime = current;
+          if (Math.random() < 0.01) console.log('[Playback] Waiting for initial live data...');
+        }
+      } else {
+        // Replay mode: stop at end
+        if (nextTime >= raceDuration) {
+          nextTime = raceDuration;
+          setIsPlaying(false);
+          setCurrentTime(nextTime);
+          return;
+        }
       }
+
       setCurrentTime(nextTime);
       frameId = requestAnimationFrame(loop);
     };
@@ -144,6 +190,7 @@ function App() {
 
   return (
     <div className={`cockpit-view ${hasFocus ? 'is-focused-tracking' : ''}`}>
+      <LiveDataSynchronizer />
       {/* GLOBAL FOCUS OVERLAY */}
       <motion.div
         className="focus-vignette"
@@ -170,7 +217,7 @@ function App() {
             {circuitMetadata?.location && (
               <div className="header-flag-container">
                 <img
-                  src={getFlagUrl(circuitMetadata.location) || ''}
+                  src={getFlagUrl(circuitMetadata.location) || undefined}
                   alt="Race Country"
                   className="header-flag"
                   onError={(e) => (e.currentTarget.style.display = 'none')}
@@ -201,8 +248,9 @@ function App() {
         </header>
 
         {/* Top Left: Track Status & Weather */}
-        <div className={`hud-panel hud-top-left ${hasFocus ? 'dimmed-section' : ''}`} style={{ top: '7.5rem' }}>
+        <div className={`hud-panel hud-top-left ${hasFocus ? 'dimmed-section' : ''}`} style={{ top: '7.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <TrackStatusBanner />
+          <EnvironmentStats />
         </div>
 
         {/* Top Right: Leaderboard */}

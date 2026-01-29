@@ -55,13 +55,16 @@ export const IntegratedGauge: React.FC<IntegratedGaugeProps> = ({ size }) => {
         let target = 0;
         if (raceData && focusedDriver) {
             const driver = raceData.drivers.find(d => d.driver_abbr === focusedDriver);
-            if (driver) {
+            if (driver && driver.telemetry && driver.telemetry.length > 0) {
                 // Short look-ahead for heading
-                const f1 = getInterpolatedFrame(driver.telemetry, currentTime).frame;
-                const f2 = getInterpolatedFrame(driver.telemetry, currentTime + 0.1).frame;
-                const dx = f2.x - f1.x;
-                const dy = f2.y - f1.y;
-                target = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
+                const r1 = getInterpolatedFrame(driver.telemetry, currentTime);
+                const r2 = getInterpolatedFrame(driver.telemetry, currentTime + 0.1);
+
+                if (r1.frame && r2.frame) {
+                    const dx = r2.frame.x - r1.frame.x;
+                    const dy = r2.frame.y - r1.frame.y;
+                    target = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
+                }
             }
         }
 
@@ -290,7 +293,7 @@ export const IntegratedGauge: React.FC<IntegratedGaugeProps> = ({ size }) => {
 
                 {/* Metadata */}
                 <Group top={68 * s}>
-                    <text textAnchor="middle" fill="#64748b" fontSize={7 * s} fontWeight={900} letterSpacing="0.1em">
+                    <text textAnchor="middle" fill={compoundColor} fontSize={7 * s} fontWeight={900} letterSpacing="0.1em">
                         {compound.toUpperCase()} • {tyreAge} LAPS
                     </text>
                 </Group>

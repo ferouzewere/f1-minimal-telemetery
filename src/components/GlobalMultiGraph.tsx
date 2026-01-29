@@ -36,7 +36,11 @@ export const GlobalMultiGraph: React.FC<GlobalMultiGraphProps> = memo(({ width, 
         let currentMaxDist = 0;
 
         const data = raceData.drivers.map((driver) => {
-            const frame = getInterpolatedFrame(driver.telemetry, currentTime).frame;
+            if (!driver.telemetry || driver.telemetry.length === 0) return null;
+            const result = getInterpolatedFrame(driver.telemetry, currentTime);
+            if (!result.frame) return null;
+
+            const frame = result.frame;
             // Current lap for trail filtering
             const currentLap = frame.lap;
 
@@ -66,7 +70,8 @@ export const GlobalMultiGraph: React.FC<GlobalMultiGraphProps> = memo(({ width, 
                 color: TEAM_COLORS[driver.team] || '#ffffff',
                 trail
             };
-        }).filter(d => !isNaN(d.dist) && !isNaN(d.speed));
+        }).filter((d): d is NonNullable<typeof d> => d !== null)
+            .filter(d => !isNaN(d.dist) && !isNaN(d.speed));
 
         return { driverData: data, maxDist: currentMaxDist };
     }, [raceData, currentTime, trackLength]);

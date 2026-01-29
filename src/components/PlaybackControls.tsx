@@ -23,8 +23,19 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ isVertical =
         totalLaps,
         togglePlay,
         seekTo,
-        setPlaySpeed
+        setPlaySpeed,
+        isLive,
+        isHistorical
     } = useRaceStore();
+
+    React.useEffect(() => {
+        console.log('[PlaybackControls] State update:', {
+            isPlaying,
+            isLive,
+            isHistorical,
+            currentTime
+        });
+    }, [isPlaying, isLive, isHistorical, currentTime]);
 
     const focusedDriverData = useMemo(() => {
         if (!raceData || !focusedDriver) return null;
@@ -40,22 +51,28 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ isVertical =
         }
     }, [focusedDriverData, currentTime]);
 
-    const maxTime = useMemo(() => {
-        if (!raceData || raceData.drivers.length === 0) return 100;
-        return Math.max(...raceData.drivers.map(d => {
-            const telemetry = d.telemetry;
-            return telemetry.length > 0 ? telemetry[telemetry.length - 1].t : 0;
-        }));
+    const { minTime, maxTime } = useMemo(() => {
+        if (!raceData || raceData.drivers.length === 0) return { minTime: 0, maxTime: 100 };
+        const allStarts = raceData.drivers.flatMap(d => d.telemetry.length > 0 ? [d.telemetry[0].t] : []);
+        const allEnds = raceData.drivers.flatMap(d => d.telemetry.length > 0 ? [d.telemetry[d.telemetry.length - 1].t] : []);
+
+        if (allStarts.length === 0) return { minTime: 0, maxTime: 100 };
+
+        return {
+            minTime: Math.min(...allStarts),
+            maxTime: Math.max(...allEnds)
+        };
     }, [raceData]);
 
-    const completion = (currentTime / maxTime) * 100;
+    const relativeTime = Math.max(0, currentTime - minTime);
+    const completion = maxTime > minTime ? ((currentTime - minTime) / (maxTime - minTime)) * 100 : 0;
 
     return (
         <div className={`minimal-playback-pill ${isVertical ? 'vertical' : ''}`}>
             {!isVertical && (
                 <>
                     <div className="pill-section actions">
-                        <button className="pill-btn restart" onClick={() => seekTo(0)} title="Restart">
+                        <button className="pill-btn restart" onClick={() => seekTo(minTime)} title="Restart">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
                             </svg>
@@ -74,8 +91,13 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ isVertical =
                     </div>
 
                     <div className="pill-section stats">
+                        {isLive && !isHistorical && (
+                            <div className="status-badge live">
+                                <span className="pulse"></span> LIVE
+                            </div>
+                        )}
                         <span className="pill-lap">L{currentFrame?.lap || 1}/{totalLaps || '-'}</span>
-                        <span className="pill-time">{formatTime(currentTime)}</span>
+                        <span className="pill-time">{formatTime(relativeTime)}</span>
                     </div>
                 </>
             )}
@@ -87,7 +109,7 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ isVertical =
                 <input
                     type={isVertical ? "range" : "range"}
                     style={isVertical ? { writingMode: 'bt-lr', appearance: 'slider-vertical', width: '4px', height: '120px' } as any : {}}
-                    min="0"
+                    min={minTime}
                     max={maxTime}
                     value={currentTime}
                     onChange={(e) => seekTo(parseInt(e.target.value))}
@@ -109,7 +131,7 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ isVertical =
 
             {isVertical && (
                 <div className="pill-section actions">
-                    <button className="pill-btn restart" onClick={() => seekTo(0)} title="Restart">
+                    <button className="pill-btn restart" onClick={() => seekTo(minTime)} title="Restart">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
                         </svg>
