@@ -40,7 +40,33 @@ function App() {
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth)
     window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input (though we don't have many inputs)
+      if (document.activeElement instanceof HTMLInputElement) return;
+
+      switch (e.code) {
+        case 'Space':
+          e.preventDefault();
+          useRaceStore.getState().togglePlay();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          useRaceStore.getState().setCurrentTime(Math.max(0, useRaceStore.getState().currentTime - 5000));
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          const maxTime = useRaceStore.getState().raceData?.drivers.reduce((max, d) => Math.max(max, d.telemetry[d.telemetry.length - 1]?.t || 0), 0) || 0;
+          useRaceStore.getState().setCurrentTime(Math.min(maxTime, useRaceStore.getState().currentTime + 5000));
+          break;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('keydown', handleKeyDown);
+    }
   }, [])
 
   const isMobile = windowWidth <= 640
@@ -201,7 +227,7 @@ function App() {
         </header>
 
         {/* Top Left: Track Status & Weather */}
-        <div className={`hud-panel hud-top-left ${hasFocus ? 'dimmed-section' : ''}`} style={{ top: '7.5rem' }}>
+        <div className="hud-panel hud-top-left" style={{ top: '7.5rem' }}>
           <TrackStatusBanner />
         </div>
 
@@ -305,7 +331,7 @@ function App() {
                   {hasFocus ? (
                     <motion.div
                       key="focus"
-                      className="focus-intelligence-view"
+                      className="focus-analysis-view"
                       initial={{ opacity: 0, y: 15 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10, position: 'absolute' }}
@@ -318,7 +344,7 @@ function App() {
                   ) : (
                     <motion.div
                       key="global"
-                      className="global-intelligence-view"
+                      className="global-analysis-view"
                       initial={{ opacity: 0, y: 15 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10, position: 'absolute' }}

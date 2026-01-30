@@ -70,15 +70,28 @@ export const TrackStatusBanner: React.FC = () => {
     const lastRaceIdRef = useRef<string | null>(null);
     const lastLapRef = useRef<number>(1);
     const processedPitStops = useRef<Set<string>>(new Set());
+    const lastTimeRef = useRef(currentTime);
+
+    // Reset processed events if we rewind significantly
+    useEffect(() => {
+        if (currentTime < lastTimeRef.current - 2000) {
+            processedPitStops.current.clear();
+            // Optional: clear notifications too if desiring a clean slate
+            // setNotifications([]);
+        }
+        lastTimeRef.current = currentTime;
+    }, [currentTime]);
 
     const addNotification = (notif: Notification) => {
         setNotifications(prev => {
             // Filter out existing notifications of the same type to avoid clutter
-            // For example, only show one PIT notification at a time unless it's a different driver
+            let filtered = prev;
             if (notif.type === 'lap' || notif.type === 'status') {
-                return [...prev.filter(n => n.type !== notif.type), notif];
+                filtered = prev.filter(n => n.type !== notif.type);
             }
-            return [...prev, notif];
+
+            // Add new notification and keep only the last 3
+            return [...filtered, notif].slice(-3);
         });
 
         if (notif.duration !== Infinity) {

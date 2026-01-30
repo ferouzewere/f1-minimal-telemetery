@@ -19,6 +19,7 @@ export interface TelemetryFrame {
   drs: number;
   ax?: number;
   ay?: number;
+  is_active?: boolean;
 }
 
 interface Stint {
@@ -216,14 +217,21 @@ export const useRaceStore = create<RaceState>((set, get) => ({
           state.lastIndices[driver.driver_abbr] || 0
         );
 
-        nextFrames[driver.driver_abbr] = result.frame;
+        // Check for DNF / Inactive (buffer of 10s after last data point)
+        const lastPacketTime = driver.telemetry[driver.telemetry.length - 1]?.t || 0;
+        const isActive = time <= lastPacketTime + 10000;
+
+        nextFrames[driver.driver_abbr] = { ...result.frame, is_active: isActive };
         nextIndices[driver.driver_abbr] = result.index;
 
         // 3. Leader Calculation (Optimized: single pass)
-        const totalDist = (result.frame.lap - 1) * state.trackLength + result.frame.dist;
-        if (totalDist > maxTotalDist) {
-          maxTotalDist = totalDist;
-          leaderAbbr = driver.driver_abbr;
+        // Only consider active drivers for leader calculation to avoid ghosts leading
+        if (isActive) {
+          const totalDist = (result.frame.lap - 1) * state.trackLength + result.frame.dist;
+          if (totalDist > maxTotalDist) {
+            maxTotalDist = totalDist;
+            leaderAbbr = driver.driver_abbr;
+          }
         }
       });
 

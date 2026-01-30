@@ -174,7 +174,7 @@ def fetch_and_add_race(year, race_name, lap_count=5):
                     p['y'] = round((p['y'] - min_y) * scale + oy, 1)
 
     race_data = {
-        'race_name': f"{year} {race_name} GP (Intelligence Data)",
+        'race_name': f"{year} {race_name} GP (Analytical Data)",
         'year': year,
         'circuit': race_name,
         'weather': weather_data,
@@ -184,7 +184,7 @@ def fetch_and_add_race(year, race_name, lap_count=5):
 
     # 5. Save JSON
     safe_name = race_name.replace(' ', '_')
-    data_filename = f"public/data/{year}_{safe_name}_intelligence.json"
+    data_filename = f"public/data/{year}_{safe_name}_analysis.json"
     with open(data_filename, 'w') as f:
         json.dump(race_data, f, separators=(',', ':'))
 
@@ -232,10 +232,10 @@ def fetch_and_add_race(year, race_name, lap_count=5):
 
         circuit_id = f"{year}-{safe_name.lower()}"
         session_entry = {
-            "id": f"{circuit_id}-intel",
-            "name": f"{year} Race (Intelligence Data)",
+            "id": f"{circuit_id}-analysis",
+            "name": f"{year} Race (Analytical Data)",
             "description": f"High-fidelity telemetry, weather and track status for {race_name}.",
-            "file": f"/data/{year}_{safe_name}_intelligence.json",
+            "file": f"/data/{year}_{safe_name}_analysis.json",
             "metadata": metadata
         }
 

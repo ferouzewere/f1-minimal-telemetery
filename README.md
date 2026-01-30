@@ -1,53 +1,90 @@
 # 🏎️ F1 Minimal Telemetry
 
-**A single-screen, replay-first, minimalist Formula 1 race intelligence interface.**
+![F1 Minimal Telemetry Hero](./public/hero.png)
 
-This project visualizes race constraints, driver freedom, and decision quality—focusing on clarity and epistemic honesty.
+**A single-screen, replay-first, minimalist Formula 1 race analysis interface.**
 
----
-
-## 🚀 Integrated Tech Stack
-
--   **Frontend:** [React 18](https://react.dev/) + [Vite](https://vitejs.dev/)
--   **State Management:** [Zustand](https://github.com/pmndrs/zustand) (for high-frequency race timing)
--   **Visualization:** [Visx](https://airbnb.io/visx/) (D3-powered low-level primitives)
--   **Language:** [TypeScript](https://www.typescriptlang.org/)
+This project visualizes race constraints, driver freedom, and decision quality—focusing on clarity, determinism, and epistemic honesty. It is a tool for strategists and data-driven F1 enthusiasts.
 
 ---
 
-## 📂 Project Structure
+## ✨ Key Features
 
--   `src/store/`: Zustand state management for the global race cursor.
--   `src/components/`: Modular visualization components (e.g., Speedometer).
--   `docs/`: Detailed technical documentation and project roadmap.
-
----
-
-## 📖 Key Documentation
-
--   [Technical Documentation](docs/minimalist_f_1_race_intelligence_interface_technical_documentation%20(1).md)
--   [Architecture Overview](docs/minimalist_f_1_race_intelligence_interface_technical_documentation%20(1).md#4-high-level-architecture)
--   [React + Visx Integration Guide](docs/minimalist_f_1_race_intelligence_interface_technical_documentation%20(1).md#11-implementation-details-react--visx-integration)
+-   **Deterministic Replay:** Precise time control for historical race analysis with 2x, 5x, and 10x speeds.
+-   **Decision-Space Visualization:** High-fidelity telemetry (Speed, RPM, Gear, Throttle/Brake) to understand driver performance.
+-   **Tyre Strategy Tracking:** Visual stint timelines and tyre age monitoring.
+-   **Multi-API Architecture:** Aggregates high-resolution data from FastF1, Ergast, and official timing feeds.
+-   **Adaptive HUD:** Context-aware UI that switches between global race overview and focused driver tracking.
+-   **Minimalist UI:** A calm, stable, non-scrollable interface built for analysis.
 
 ---
 
-## 🛠️ Getting Started
+## 🏗️ Architecture Overview
 
-1.  **Install Dependencies:**
-    ```bash
-    npm install
-    ```
-2.  **Start Development Server:**
-    ```bash
-    npm run dev
-    ```
-3.  **Build for Production:**
-    ```bash
-    npm run build
-    ```
+```mermaid
+graph TD
+    A[External APIs: FastF1/Ergast] --> B[Python Data Ingest & Normalization]
+    B --> C[Static JSON Data Store]
+    C --> D[React Frontend / Zustand]
+    D --> E[Visx/D3 SVG Renderers]
+    D --> F[Framer Motion HUD Layers]
+    
+    subgraph "Data Pipeline (Python)"
+        B
+    end
+    
+    subgraph "Frontend Engine (React/TS)"
+        D
+        E
+        F
+    end
+```
+
+---
+
+## 🛠️ Technology Stack
+
+-   **Frontend:** React 19, TypeScript, Zustand (State), Visx/D3 (Charts), Framer Motion (Animations)
+-   **Data Processing:** Python 3.x, FastF1, Pandas
+-   **Storage:** IndexedDB (Client Caching), Static JSON
+-   **Build Tool:** Vite
+
+---
+
+## 🚀 Quick Start
+
+### 1. Prerequisites
+- **Node.js**: v18+
+- **Python**: v3.10+
+- **FastF1**: `pip install fastf1 pandas`
+
+### 2. Setup & Run
+```bash
+# Install dependencies
+npm install
+
+# Start development server & telemetry bridge
+npm start
+```
+
+---
+
+## 📖 Documentation
+
+-   [Implementation History](docs/IMPLEMENTATION_HISTORY.md) - Chronological log of build steps and technical milestones.
+-   [Architecture](docs/ARCHITECTURE.md) - Design philosophy and state management.
+-   [Data Pipeline](docs/DATA_PIPELINE.md) - Ingestion, normalization, and optimization.
+-   [Core Components](docs/CORE_COMPONENTS.md) - React component library and HUD layers.
+-   [Setup Guide](docs/SETUP.md) - Environment configuration and first-run instructions.
 
 ---
 
 ## 🤝 Philosophy
 
-We prioritize **clarity, determinism, and epistemic honesty**. The UI is built to be a strategist's notebook, not a broadcast spectacle.
+We prioritize **clarity over spectacle**. The UI is built to be a strategist's notebook, ensuring that every pixel represents a meaningful data point without the noise of traditional broadcasts.
+
+---
+
+## 🛡️ License
+
+MIT License. See [LICENSE](LICENSE) for details.

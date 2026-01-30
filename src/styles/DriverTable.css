@@ -30,81 +30,90 @@
     display: none;
 }
 
+/* --- CSS GRID LAYOUT --- */
+:root {
+    --dt-grid-cols: 35px minmax(100px, 1.5fr) 40px minmax(80px, 1fr) minmax(70px, 0.8fr) 1.5fr;
+}
+
 .driver-table {
     width: 100%;
-    border-collapse: collapse;
-    table-layout: fixed;
-    /* NEW: Fixes wobbling */
+    /* No more table-layout */
     font-family: 'Titillium Web', sans-serif;
     font-size: 0.85rem;
     letter-spacing: 0.02em;
 }
 
-.driver-table thead th {
+/* Header Row */
+.table-header {
+    display: grid;
+    grid-template-columns: var(--dt-grid-cols);
+    align-items: center;
+    padding: 0;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.table-header .th-cell {
     text-align: left;
     padding: 0.75rem 0.5rem 0.5rem;
     color: var(--text-secondary);
     font-weight: 700;
     font-size: 0.7rem;
     letter-spacing: 0.1em;
-    /* Wide tracking for headers */
     text-transform: uppercase;
-    /* F1 Style */
-    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-    background: transparent;
     white-space: nowrap;
-    /* Prevent headers from wrapping */
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.driver-table tbody td {
-    padding: 0.5rem 0.5rem;
-    vertical-align: middle;
+/* Body Rows */
+.driver-row {
+    display: grid !important;
+    /* Override motion styles if conflict */
+    grid-template-columns: var(--dt-grid-cols);
+    align-items: center;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.driver-row .td-cell {
+    padding: 0.5rem 0.5rem;
     white-space: nowrap;
-    /* Prevent content from wrapping */
     overflow: hidden;
     text-overflow: ellipsis;
-    /* Handle overflow gracefully */
+    /* Vertical centring handled by grid align-items */
+}
+
+/* Alignments */
+.th-gap,
+.td-gap,
+.th-last,
+.td-last {
+    text-align: right !important;
+}
+
+.th-pos,
+.td-pos {
+    text-align: center !important;
+}
+
+/* Override old fixed widths */
+.driver-table .th-pos,
+.driver-table .td-pos,
+.driver-table .th-driver,
+.driver-table .td-driver,
+.driver-table .th-tyre,
+.driver-table .td-tyre,
+.driver-table .th-gap,
+.driver-table .td-gap,
+.driver-table .th-last,
+.driver-table .td-last,
+.driver-table .th-sect,
+.driver-table .td-sect {
+    width: auto !important;
+    /* Let Grid handle width */
 }
 
 /* --- COLUMN WIDTHS --- */
-.driver-table .th-pos,
-.driver-table .td-pos {
-    width: 40px;
-}
-
-.driver-table .th-driver,
-.driver-table .td-driver {
-    width: 120px;
-}
-
-.driver-table .th-tyre,
-.driver-table .td-tyre {
-    width: 50px;
-}
-
-
-
-.driver-table .th-gap,
-.driver-table .td-gap {
-    width: 80px;
-    text-align: right;
-}
-
-.driver-table .th-last,
-.driver-table .td-last {
-    width: 85px;
-    text-align: right;
-}
-
-.driver-table .th-sect,
-.driver-table .td-sect {
-    width: auto;
-    /* Takes remaining space */
-}
-
+/* These are now handled by --dt-grid-cols and width: auto !important; */
 
 
 .driver-table .th-pos,

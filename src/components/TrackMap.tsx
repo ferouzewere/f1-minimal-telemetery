@@ -1,4 +1,4 @@
-import { useMemo, Fragment } from 'react';
+import { useMemo, Fragment, useState, useEffect } from 'react';
 import { Group } from '@visx/group';
 import { LinePath } from '@visx/shape';
 import { curveCardinal } from '@visx/curve';
@@ -35,6 +35,15 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
     const circuitMetadata = useRaceStore(state => state.circuitMetadata);
     const currentTrackStatus = useRaceStore(state => state.currentTrackStatus);
     const currentWeather = useRaceStore(state => state.currentWeather);
+
+    const [isTransitioning, setIsTransitioning] = useState(false);
+
+    // Detect focus changes to trigger a smooth camera transition
+    useEffect(() => {
+        setIsTransitioning(true);
+        const timer = setTimeout(() => setIsTransitioning(false), 1200);
+        return () => clearTimeout(timer);
+    }, [focusedDriver]);
 
     // Define track points with sector info (Static per session)
     const trackPoints = useMemo(() => {
@@ -77,6 +86,7 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
             .filter(driver => driverFrames[driver.driver_abbr])
             .map((driver, idx) => {
                 const frame = driverFrames[driver.driver_abbr]!;
+                const isActive = frame.is_active !== false; // Default to true if undefined
 
                 return {
                     abbr: driver.driver_abbr,
@@ -84,7 +94,10 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
                     y: frame.y,
                     isPit: frame.is_pit,
                     drs: frame.drs,
-                    color: driver.team_color || TEAM_COLORS[driver.team] || DEFAULT_COLORS[idx % DEFAULT_COLORS.length]
+                    isActive,
+                    color: isActive
+                        ? (driver.team_color || TEAM_COLORS[driver.team] || DEFAULT_COLORS[idx % DEFAULT_COLORS.length])
+                        : '#475569' // Grey for DNF
                 };
             }).filter(pos => !isNaN(pos.x) && !isNaN(pos.y));
     }, [raceData, driverFrames]);
@@ -172,7 +185,7 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
                 opacity={0.8}
             />
 
-            {/* Ambient Intelligence Pulse */}
+            {/* Ambient Analysis Pulse */}
             <circle cx={500} cy={350} r={2000} fill="rgba(59, 130, 246, 0.03)">
                 <animate attributeName="opacity" values="0.01;0.05;0.01" dur="10s" repeatCount="indefinite" />
             </circle>
@@ -219,8 +232,8 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
             height={height}
             animate={{ viewBox: `${vbX} ${vbY} ${vbWidth} ${vbHeight}` }}
             transition={{
-                duration: 1.2,
-                ease: [0.22, 1, 0.36, 1], // Quart easeOut for cinematic feel
+                duration: isTransitioning || !focusedDriver ? 1.2 : 0,
+                ease: isTransitioning || !focusedDriver ? [0.22, 1, 0.36, 1] : "linear",
             }}
         >
             <defs>
@@ -272,6 +285,16 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
                     </feMerge>
                 </filter>
 
+                <filter id="orangeFlagGlow">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feFlood floodColor="#f97316" floodOpacity="0.5" result="flood" />
+                    <feComposite in="flood" in2="blur" operator="in" result="glow" />
+                    <feMerge>
+                        <feMergeNode in="glow" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+
                 <pattern id="rainNoise" width="20" height="20" patternUnits="userSpaceOnUse">
                     <line x1="0" y1="0" x2="1" y2="4" stroke="#3b82f6" strokeWidth="0.5" opacity="0.4">
                         <animateTransform
@@ -316,20 +339,62 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
                     </Group>
                 )}
 
-                {/* Sector Markers (Enhanced Visibility) */}
+                {/* Static Track Layer */}
+                {segments.map((seg, i) => {
+                    let trackBaseColor = "#334155";
+                    let filter = undefined;
+
+                    if (currentTrackStatus?.status === "2") { // Yellow flag
+                        trackBaseColor = "#facc15";
+                        filter = "url(#yellowFlagGlow)";
+                    } else if (currentTrackStatus?.status === "4" || currentTrackStatus?.status === "6") { // SC / VSC
+                        trackBaseColor = "#f97316"; // Orange
+                        filter = "url(#orangeFlagGlow)";
+                    } else if (currentTrackStatus?.status === "5") { // Red flag
+                        trackBaseColor = "#ef4444";
+                    }
+
+                    return (
+                        <LinePath
+                            key={i}
+                            data={seg.points}
+                            x={(d: any) => d.x}
+                            y={(d: any) => d.y}
+                            stroke={trackBaseColor}
+                            strokeOpacity={currentTrackStatus?.status && currentTrackStatus.status !== "1" ? 0.8 : 0.4}
+                            strokeWidth={14}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            curve={curveCardinal}
+                            style={{
+                                filter,
+                                transition: 'stroke 0.5s ease, stroke-opacity 0.5s ease'
+                            }}
+                        />
+                    );
+                })}
+
+                {/* Sector Markers (Enhanced Visibility + Dynamic Placement) */}
                 {circuitMetadata && [1, 2].map(sNum => {
                     const dist = sNum === 1 ? circuitMetadata.sectors.s1_end : circuitMetadata.sectors.s2_end;
                     const point = trackPoints.reduce((prev, curr) =>
                         Math.abs(curr.dist - dist) < Math.abs(prev.dist - dist) ? curr : prev
                     );
 
-                    // Calculate an offset position "beside" the track
-                    // We'll just shift it upwards and outwards a bit for better clarity
-                    const labelOffsetX = sNum === 1 ? -40 : 40;
-                    const labelOffsetY = -40;
+                    // Dynamic Centroid-based Offset
+                    const centerX = (trackBounds.minX + trackBounds.maxX) / 2;
+                    const centerY = (trackBounds.minY + trackBounds.maxY) / 2;
+
+                    const dx = point.x - centerX;
+                    const dy = point.y - centerY;
+                    const len = Math.sqrt(dx * dx + dy * dy) || 1; // Avoid divide by zero
+
+                    // Push outwards by 60 units
+                    const labelOffsetX = (dx / len) * 60;
+                    const labelOffsetY = (dy / len) * 60;
 
                     return (
-                        <Group key={`sector-marker-${sNum}`}>
+                        <Group key={`sector-marker-${sNum}`} style={{ pointerEvents: 'none' }}>
                             {/* Leader Line */}
                             <line
                                 x1={point.x} y1={point.y}
@@ -339,13 +404,14 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
                                 strokeDasharray="2,2"
                             />
 
-                            {/* Marker Point on Track */}
+                            {/* Marker Point on Track (On Top) */}
                             <circle
                                 cx={point.x} cy={point.y}
                                 r={4}
                                 fill="#ffffff"
                                 stroke="#0f172a"
                                 strokeWidth={2}
+                                style={{ zIndex: 10 }}
                             />
 
                             {/* Offset Label Group */}
@@ -354,8 +420,8 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
                                     x={-15} y={-10}
                                     width={30} height={20}
                                     rx={2}
-                                    fill="rgba(15, 23, 42, 0.8)"
-                                    stroke="rgba(255, 255, 255, 0.6)"
+                                    fill="rgba(15, 23, 42, 0.9)" // Increased opacity for readability
+                                    stroke="rgba(255, 255, 255, 0.8)"
                                     strokeWidth={1}
                                     style={{ backdropFilter: 'blur(4px)' }}
                                 />
@@ -374,40 +440,6 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
                                 </text>
                             </Group>
                         </Group>
-                    );
-                })}
-
-                {/* Static Track Layer */}
-                {segments.map((seg, i) => {
-                    let trackBaseColor = "#334155";
-                    let filter = undefined;
-
-                    if (currentTrackStatus?.status === "2") { // Yellow flag
-                        trackBaseColor = "#facc15";
-                        filter = "url(#yellowFlagGlow)";
-                    } else if (currentTrackStatus?.status === "4" || currentTrackStatus?.status === "6") { // SC / VSC
-                        trackBaseColor = "#94a3b8";
-                    } else if (currentTrackStatus?.status === "5") { // Red flag
-                        trackBaseColor = "#ef4444";
-                    }
-
-                    return (
-                        <LinePath
-                            key={i}
-                            data={seg.points}
-                            x={(d: any) => d.x}
-                            y={(d: any) => d.y}
-                            stroke={trackBaseColor}
-                            strokeOpacity={currentTrackStatus?.status ? 0.8 : 0.4}
-                            strokeWidth={14}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            curve={curveCardinal}
-                            style={{
-                                filter,
-                                transition: 'stroke 0.5s ease, stroke-opacity 0.5s ease'
-                            }}
-                        />
                     );
                 })}
 
@@ -468,7 +500,7 @@ export const TrackMap = ({ width, height, verticalOffset = 0 }: TrackMapProps) =
                                 strokeWidth={isFocused ? 2 : 0}
                                 style={{
                                     filter: isFocused ? 'url(#carGlow)' : 'none',
-                                    opacity: isFocused ? 1 : 0.6,
+                                    opacity: isFocused ? 1 : (pos.isActive ? 0.8 : 0.4),
                                     transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
                                 }}
                             />

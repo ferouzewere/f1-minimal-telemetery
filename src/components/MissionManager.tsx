@@ -107,32 +107,45 @@ export const MissionManager: React.FC<MissionManagerProps> = ({ onClose, current
         }
     }, [currentSessions, installing]);
 
-    const handleDeleteRace = async (circuitId: string) => {
-        if (confirm("Are you sure you want to decommission this mission? Telemetry data will be removed from the hub.")) {
-            setStatusMessage(`DECOMMISSIONING: Removing mission ${circuitId}...`);
-            console.log(`[SYSTEM_REQUEST] ACTION: DELETE_MISSION | ID: ${circuitId}`);
+    const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-            try {
-                // Call the bridge server to perform actual deletion
-                await fetch('http://localhost:3001/delete-mission', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ circuit_id: circuitId })
-                });
+    const requestDelete = (circuitId: string) => {
+        setDeleteTarget(circuitId);
+    };
 
-                // Short delay to allow for removal perception & backend processing
-                setTimeout(() => {
-                    onRefresh();
-                    setStatusMessage(`MISSION REMOVED: Registry updated.`);
-                    setTimeout(() => setStatusMessage(null), 3000);
-                }, 1500);
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
 
-            } catch (e) {
-                console.error("Failed to signal bridge server:", e);
-                setStatusMessage("ERROR: Could not contact mission control.");
+        const circuitId = deleteTarget;
+        setDeleteTarget(null); // Close modal immediately
+
+        setStatusMessage(`DECOMMISSIONING: Removing mission ${circuitId}...`);
+        console.log(`[SYSTEM_REQUEST] ACTION: DELETE_MISSION | ID: ${circuitId}`);
+
+        try {
+            // Call the bridge server to perform actual deletion
+            await fetch('http://localhost:3001/delete-mission', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ circuit_id: circuitId })
+            });
+
+            // Short delay to allow for removal perception & backend processing
+            setTimeout(() => {
+                onRefresh();
+                setStatusMessage(`MISSION REMOVED: Registry updated.`);
                 setTimeout(() => setStatusMessage(null), 3000);
-            }
+            }, 1500);
+
+        } catch (e) {
+            console.error("Failed to signal bridge server:", e);
+            setStatusMessage("ERROR: Could not contact mission control.");
+            setTimeout(() => setStatusMessage(null), 3000);
         }
+    };
+
+    const cancelDelete = () => {
+        setDeleteTarget(null);
     };
 
     const yearOptions = catalog ? Object.keys(catalog.seasons).sort((a, b) => b.localeCompare(a)) : [];
@@ -170,6 +183,42 @@ export const MissionManager: React.FC<MissionManagerProps> = ({ onClose, current
                                 )}
                             </div>
                         </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {deleteTarget && (
+                    <motion.div
+                        className="confirmation-modal-overlay"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                    >
+                        <motion.div
+                            className="confirmation-box"
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                        >
+                            <div className="modal-header">
+                                <span className="warning-icon">⚠</span>
+                                <h3>CONFIRM DECOMMISSION</h3>
+                            </div>
+                            <p>
+                                Are you sure you want to remove mission <strong>{deleteTarget}</strong>?
+                                <br />
+                                <span className="sub-text">Telemetry data will be permanently deleted from the local hub.</span>
+                            </p>
+                            <div className="modal-actions">
+                                <button className="modal-btn cancel" onClick={cancelDelete}>
+                                    ABORT
+                                </button>
+                                <button className="modal-btn confirm" onClick={confirmDelete}>
+                                    EXECUTE DELETE
+                                </button>
+                            </div>
+                        </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -243,7 +292,7 @@ export const MissionManager: React.FC<MissionManagerProps> = ({ onClose, current
                                         <span className="meta">{circuit.sessions.length} Session Variants</span>
                                     </div>
                                 </div>
-                                <button className="delete-btn" onClick={() => handleDeleteRace(circuit.id)}>
+                                <button className="delete-btn" onClick={() => requestDelete(circuit.id)}>
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                         <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                                     </svg>

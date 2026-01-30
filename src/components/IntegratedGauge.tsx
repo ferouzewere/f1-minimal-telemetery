@@ -290,7 +290,7 @@ export const IntegratedGauge: React.FC<IntegratedGaugeProps> = ({ size }) => {
 
                 {/* Metadata */}
                 <Group top={68 * s}>
-                    <text textAnchor="middle" fill="#64748b" fontSize={7 * s} fontWeight={900} letterSpacing="0.1em">
+                    <text textAnchor="middle" fill={compoundColor} fontSize={7 * s} fontWeight={900} letterSpacing="0.1em">
                         {compound.toUpperCase()} • {tyreAge} LAPS
                     </text>
                 </Group>
