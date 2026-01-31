@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useRaceStore } from '../store/useRaceStore';
-import { getInterpolatedFrame } from '../utils/interpolation';
+
 
 const formatTime = (ms: number) => {
     const totalSeconds = ms / 1000;
@@ -19,26 +19,21 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ isVertical =
         isPlaying,
         playSpeed,
         raceData,
-        focusedDriver,
+
         totalLaps,
+        leaderAbbr,
+        driverFrames,
         togglePlay,
         seekTo,
         setPlaySpeed
     } = useRaceStore();
 
-    const focusedDriverData = useMemo(() => {
-        if (!raceData || !focusedDriver) return null;
-        return raceData.drivers.find(d => d.driver_abbr === focusedDriver);
-    }, [raceData, focusedDriver]);
+    const raceLap = useMemo(() => {
+        if (!leaderAbbr || !driverFrames[leaderAbbr]) return 1;
+        return driverFrames[leaderAbbr]?.lap || 1;
+    }, [leaderAbbr, driverFrames]);
 
-    const currentFrame = useMemo(() => {
-        if (!focusedDriverData) return null;
-        try {
-            return getInterpolatedFrame(focusedDriverData.telemetry, currentTime).frame;
-        } catch (e) {
-            return null;
-        }
-    }, [focusedDriverData, currentTime]);
+
 
     const maxTime = useMemo(() => {
         if (!raceData || raceData.drivers.length === 0) return 100;
@@ -74,7 +69,7 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ isVertical =
                     </div>
 
                     <div className="pill-section stats">
-                        <span className="pill-lap">L{currentFrame?.lap || 1}/{totalLaps || '-'}</span>
+                        <span className="pill-lap">L{raceLap}/{totalLaps || '-'}</span>
                         <span className="pill-time">{formatTime(currentTime)}</span>
                     </div>
                 </>

@@ -17,6 +17,7 @@ import { getCachedData } from './utils/db'
 import { WeatherOverlay } from './components/WeatherOverlay'
 import { TrackStatusBanner } from './components/TrackStatusBanner'
 import { IntegratedGauge } from './components/IntegratedGauge'
+import { RaceFxOverlay } from './components/RaceFxOverlay'
 
 import { getFlagUrl } from './utils/countryMapping'
 import { useRaceStore, type DriverData } from './store/useRaceStore'
@@ -58,6 +59,16 @@ function App() {
           e.preventDefault();
           const maxTime = useRaceStore.getState().raceData?.drivers.reduce((max, d) => Math.max(max, d.telemetry[d.telemetry.length - 1]?.t || 0), 0) || 0;
           useRaceStore.getState().setCurrentTime(Math.min(maxTime, useRaceStore.getState().currentTime + 5000));
+          break;
+        case 'KeyF':
+          e.preventDefault();
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+          } else {
+            if (document.exitFullscreen) {
+              document.exitFullscreen();
+            }
+          }
           break;
       }
     };
@@ -177,6 +188,10 @@ function App() {
         animate={{ opacity: hasFocus ? 1 : 0 }}
         transition={{ duration: 0.8 }}
       />
+
+      {/* Cinematic FX Overlays */}
+      <RaceFxOverlay />
+
       {/* LAYER 0: Full Screen Ambient Map */}
       <div className="track-background-layer">
         <ParentSize>

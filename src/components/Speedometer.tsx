@@ -7,9 +7,27 @@ import { useRaceStore } from '../store/useRaceStore';
 interface SpeedometerProps {
     width: number;
     height: number;
+    // Optional overrides for cinematic use
+    overrideSpeed?: number;
+    overrideRpm?: number;
+    overrideGear?: number;
+    overrideThrottle?: number;
+    overrideBrake?: number;
+    overrideDrs?: number;
+    overridePit?: boolean;
 }
 
-export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
+export const Speedometer: React.FC<SpeedometerProps> = ({
+    width,
+    height,
+    overrideSpeed,
+    overrideRpm,
+    overrideGear,
+    overrideThrottle,
+    overrideBrake,
+    overrideDrs,
+    overridePit
+}) => {
     const raceData = useRaceStore((state) => state.raceData);
     const focusedDriver = useRaceStore((state) => state.focusedDriver);
     const currentTime = useRaceStore((state) => state.currentTime);
@@ -17,12 +35,13 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
 
     const currentFrame = focusedDriver ? driverFrames[focusedDriver] : null;
 
-    const speed = currentFrame?.speed || 0;
-    const throttle = currentFrame?.throttle || 0;
-    const brake = currentFrame?.brake || 0;
-    const gear = currentFrame?.gear || 0; // Assuming 0=N, 1-8=Gears
-    const drs = currentFrame?.drs;
-    const isPit = currentFrame?.is_pit;
+    // Use overrides if provided, otherwise fallback to store data
+    const speed = overrideSpeed ?? (currentFrame?.speed || 0);
+    const throttle = overrideThrottle ?? (currentFrame?.throttle || 0);
+    const brake = overrideBrake ?? (currentFrame?.brake || 0);
+    const gear = overrideGear ?? (currentFrame?.gear || 0); // Assuming 0=N, 1-8=Gears
+    const drs = overrideDrs ?? currentFrame?.drs;
+    const isPit = overridePit ?? currentFrame?.is_pit;
 
     // Minimum visual thresholds for visibility
     const vizThrottle = throttle > 1 ? Math.max(throttle, 5) : throttle;
@@ -38,15 +57,20 @@ export const Speedometer: React.FC<SpeedometerProps> = ({ width, height }) => {
     // --- RPM DATA ---
     const MAX_RPM = 12500;
     const IDLE_RPM = 4000;
-    let rpm = currentFrame?.rpm || IDLE_RPM;
+
+    // Calculate RPM: Override -> Data -> Simulation
+    let rpm = overrideRpm ?? (currentFrame?.rpm || IDLE_RPM);
 
     // Fallback simulation if data is older or missing RPM (though our script now provides it)
-    if (!currentFrame?.rpm && gear > 0) {
-        const MAX_SPEEDS = [360, 360, 130, 170, 210, 250, 290, 325, 360, 395];
-        const gearMaxSpeed = MAX_SPEEDS[gear + 1] || 360;
-        rpm = Math.max(IDLE_RPM, Math.min(MAX_RPM, (speed / gearMaxSpeed) * MAX_RPM));
-    } else if (!currentFrame?.rpm) {
-        rpm = IDLE_RPM + ((throttle / 100) * (MAX_RPM - IDLE_RPM));
+    // Only simulate if NO override and NO data
+    if (overrideRpm === undefined && !currentFrame?.rpm) {
+        if (gear > 0) {
+            const MAX_SPEEDS = [360, 360, 130, 170, 210, 250, 290, 325, 360, 395];
+            const gearMaxSpeed = MAX_SPEEDS[gear + 1] || 360;
+            rpm = Math.max(IDLE_RPM, Math.min(MAX_RPM, (speed / gearMaxSpeed) * MAX_RPM));
+        } else {
+            rpm = IDLE_RPM + ((throttle / 100) * (MAX_RPM - IDLE_RPM));
+        }
     }
 
     // RPM Color Logic

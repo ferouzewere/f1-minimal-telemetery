@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRaceStore } from '../store/useRaceStore';
 import type { DriverData, TelemetryFrame } from '../store/useRaceStore';
@@ -98,6 +98,24 @@ export const DriverTable: React.FC = () => {
         }).filter((driver): driver is DriverRow => driver !== null).sort((a, b) => a.pos - b.pos);
     }, [raceData, driverFrames, leaderAbbr, trackLength, circuitMetadata, sessionBests]);
 
+    const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+
+    useEffect(() => {
+        const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener('fullscreenchange', handleFsChange);
+        return () => document.removeEventListener('fullscreenchange', handleFsChange);
+    }, []);
+
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    };
+
     if (!raceData) return null;
 
     return (
@@ -107,6 +125,34 @@ export const DriverTable: React.FC = () => {
                 <div className="live-badge">
                     <div className="ping"></div>
                     LIVE
+                </div>
+                <div
+                    onClick={toggleFullscreen}
+                    style={{
+                        marginLeft: 'auto',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        opacity: 0.7,
+                        fontSize: '0.7em',
+                        border: '1px solid rgba(255,255,255,0.3)',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        pointerEvents: 'auto'
+                    }}
+                    title={isFullscreen ? "Exit Full Screen (F)" : "Enter Full Screen (F)"}
+                >
+                    {isFullscreen ? (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M8 3v3H5m5 0h3V3m0 18v-3h3m-5 0h-3v3" />
+                        </svg>
+                    ) : (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                        </svg>
+                    )}
+                    <span>F</span>
                 </div>
             </div>
             {/* Grid Header */}
