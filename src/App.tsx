@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ParentSize } from '@visx/responsive'
 
 import { TrackMap } from './components/TrackMap'
+import { BackgroundJobIndicator } from './components/BackgroundJobIndicator';
 import { Speedometer } from './components/Speedometer'
 import { DriverTable } from './components/DriverTable'
 
@@ -140,6 +141,23 @@ function App() {
     }
   }, [loadRaceData, raceData]);
 
+  // Bridge Status Heartbeat
+  const setBridgeStatus = useRaceStore(state => state.setBridgeStatus);
+  useEffect(() => {
+    const checkBridge = async () => {
+      try {
+        const res = await fetch('http://localhost:3001/status');
+        setBridgeStatus(res.ok ? 'online' : 'offline');
+      } catch {
+        setBridgeStatus('offline');
+      }
+    };
+
+    checkBridge();
+    const interval = setInterval(checkBridge, 10000);
+    return () => clearInterval(interval);
+  }, [setBridgeStatus]);
+
   // Calculate Effective Race Duration
   const raceDuration = useMemo(() => {
     if (!raceData) return 0;
@@ -189,9 +207,6 @@ function App() {
         transition={{ duration: 0.8 }}
       />
 
-      {/* Cinematic FX Overlays */}
-      <RaceFxOverlay />
-
       {/* LAYER 0: Full Screen Ambient Map */}
       <div className="track-background-layer">
         <ParentSize>
@@ -204,40 +219,53 @@ function App() {
 
       {/* LAYER 1: HUD Grid Overlay */}
       <div className="hud-overlay-layer">
+        {/* Cinematic FX Overlays */}
+        <RaceFxOverlay />
 
         {/* Top Center: Mission Control Header (Redesigned Pill) */}
         <header className="hud-panel hud-top-center-pill">
-          <div className="hub-capsule transparent-pill" onClick={() => setIsNavOpen(!isNavOpen)}>
-            {circuitMetadata?.location && (
-              <div className="header-flag-container">
-                <img
-                  src={getFlagUrl(circuitMetadata.location) || ''}
-                  alt="Race Country"
-                  className="header-flag"
-                  onError={(e) => (e.currentTarget.style.display = 'none')}
-                />
+          <div style={{ display: 'flex', alignItems: 'center', pointerEvents: 'auto' }}>
+            <div
+              className="hub-capsule transparent-pill"
+              onClick={() => setIsNavOpen(!isNavOpen)}
+              style={{ position: 'relative', zIndex: 200 }} // Higher than indicator
+            >
+              {circuitMetadata?.location && (
+                <div className="header-flag-container">
+                  <img
+                    src={getFlagUrl(circuitMetadata.location) || ''}
+                    alt="Flag"
+                    className="header-flag"
+                  />
+                </div>
+              )}
+              <div className="hub-title">
+                <h1>{raceData?.race_name || 'F1 MONITOR'}</h1>
+                <div className="hub-subtitle">
+                  <span>{circuitMetadata?.name || 'TRACK MONITOR'}</span>
+                  {circuitMetadata?.lapLength && (
+                    <span className="circuit-specs">
+                      • {(circuitMetadata.lapLength / 1000).toFixed(3)} KM • {totalLaps || '-'} LAPS
+                    </span>
+                  )}
+                </div>
               </div>
-            )}
-            <div className="hub-title">
-              <h1>{raceData?.race_name || 'F1 MONITOR'}</h1>
-              <div className="hub-subtitle">
-                <span>{circuitMetadata?.name || 'TRACK MONITOR'}</span>
-                {circuitMetadata?.lapLength && (
-                  <span className="circuit-specs">
-                    • {(circuitMetadata.lapLength / 1000).toFixed(3)} KM • {totalLaps || '-'} LAPS
-                  </span>
-                )}
+              <div
+                className="pill-action"
+                style={{
+                  marginLeft: '0.5rem',
+                  transform: isNavOpen ? 'rotate(180deg)' : 'none',
+                  transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  color: '#64748b'
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
               </div>
             </div>
 
-            <motion.div
-              animate={{ rotate: isNavOpen ? 180 : 0 }}
-              style={{ color: '#64748b' }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            </motion.div>
+            <BackgroundJobIndicator />
           </div>
         </header>
 

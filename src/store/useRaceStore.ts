@@ -89,6 +89,14 @@ export interface CircuitMetadata {
   };
 }
 
+export interface BackgroundJob {
+  id: string;
+  name: string;
+  progress: number;
+  status: 'initializing' | 'syncing' | 'completed' | 'failed';
+  message: string;
+}
+
 interface RaceState {
   currentTime: number;
   playSpeed: number;
@@ -107,6 +115,8 @@ interface RaceState {
   driverFrames: Record<string, TelemetryFrame | null>;
   lastIndices: Record<string, number>;
   leaderAbbr: string | null;
+  activeJobs: BackgroundJob[];
+  bridgeStatus: 'online' | 'offline' | 'checking';
 
   // Actions
   loadRaceData: (data: RaceData, metadata?: CircuitMetadata, cacheKey?: string) => void;
@@ -117,6 +127,10 @@ interface RaceState {
   setFocusedDriver: (abbr: string | null) => void;
   setComparisonDriver: (abbr: string | null) => void;
   setIsPlaying: (playing: boolean) => void;
+  addJob: (job: BackgroundJob) => void;
+  updateJob: (id: string, updates: Partial<BackgroundJob>) => void;
+  removeJob: (id: string) => void;
+  setBridgeStatus: (status: 'online' | 'offline' | 'checking') => void;
 }
 
 export const useRaceStore = create<RaceState>((set, get) => ({
@@ -137,6 +151,8 @@ export const useRaceStore = create<RaceState>((set, get) => ({
   driverFrames: {},
   lastIndices: {},
   leaderAbbr: null,
+  activeJobs: [],
+  bridgeStatus: 'checking',
 
   loadRaceData: (data, metadata, cacheKey) => {
     if (!data || !data.drivers || data.drivers.length === 0) return;
@@ -251,4 +267,14 @@ export const useRaceStore = create<RaceState>((set, get) => ({
   setFocusedDriver: (abbr) => set({ focusedDriver: abbr }),
   setComparisonDriver: (abbr) => set({ comparisonDriver: abbr }),
   setIsPlaying: (playing) => set({ isPlaying: playing }),
+  addJob: (job) => set((state) => ({
+    activeJobs: [...state.activeJobs.filter(j => j.id !== job.id), job]
+  })),
+  updateJob: (id, updates) => set((state) => ({
+    activeJobs: state.activeJobs.map(j => j.id === id ? { ...j, ...updates } : j)
+  })),
+  removeJob: (id) => set((state) => ({
+    activeJobs: state.activeJobs.filter(j => j.id !== id)
+  })),
+  setBridgeStatus: (status) => set({ bridgeStatus: status }),
 }));

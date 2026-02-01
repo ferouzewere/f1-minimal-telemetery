@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CircuitOutline } from './CircuitOutline';
+import { useRaceStore } from '../store/useRaceStore';
 
 interface CatalogRace {
     round: number;
@@ -22,9 +23,12 @@ interface MissionManagerProps {
 export const MissionManager: React.FC<MissionManagerProps> = ({ onClose, currentSessions, onRefresh }) => {
     const [catalog, setCatalog] = useState<Catalog | null>(null);
     const [selectedYear, setSelectedYear] = useState('2024');
-    const [installing, setInstalling] = useState<string | null>(null);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
-    const [installProgress, setInstallProgress] = useState(0);
+
+    const bridgeStatus = useRaceStore(state => state.bridgeStatus);
+    const addJob = useRaceStore(state => state.addJob);
+    const updateJob = useRaceStore(state => state.updateJob);
+    const activeJobs = useRaceStore(state => state.activeJobs);
 
     useEffect(() => {
         fetch('/f1_catalog.json')
@@ -36,16 +40,20 @@ export const MissionManager: React.FC<MissionManagerProps> = ({ onClose, current
     const handleAddRace = async (year: string, race: CatalogRace) => {
         const missionName = `${year} ${race.name} GP`;
         const circuitId = `${year}-${race.name.toLowerCase().replace(/\s+/g, '_')}`;
+        const jobId = `init-${circuitId}`;
 
-        setInstalling(race.official_name);
-        setInstallProgress(5);
-        setStatusMessage(`INITIALIZING MISSION: Connecting to ${missionName} data stream...`);
+        addJob({
+            id: jobId,
+            name: missionName,
+            progress: 5,
+            status: 'initializing',
+            message: `Connecting to ${missionName} data stream...`
+        });
 
         console.log(`[SYSTEM_REQUEST] ACTION: ADD_MISSION | YEAR: ${year} | RACE: "${race.official_name}" | ID: ${circuitId}`);
 
-        // Trigger the bridge server
         try {
-            fetch('http://localhost:3001/add-mission', {
+            const response = await fetch('http://localhost:3001/add-mission', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -53,59 +61,65 @@ export const MissionManager: React.FC<MissionManagerProps> = ({ onClose, current
                     race_name: race.name,
                     laps: 5
                 })
-            }).catch(() => console.warn("Bridge server not responding. Falling back to manual mode."));
+            });
+
+            if (!response.ok) throw new Error('Bridge responded with error');
+
         } catch (e) {
             console.error("Failed to signal bridge server:", e);
+            updateJob(jobId, {
+                status: 'failed',
+                message: 'BRIDGE OFFLINE',
+                progress: 0
+            });
+            return; // Stop here if bridge is dead
         }
 
         let attempts = 0;
-        const maxAttempts = 120; // 6 minutes total (downloads can be slow)
+        const maxAttempts = 120;
         const pollInterval = setInterval(() => {
             attempts++;
             onRefresh();
 
-            // Calculate progress: Start at 5, aim for 95 while polling
             const progress = Math.min(95, 5 + (attempts / maxAttempts) * 90);
-            setInstallProgress(progress);
+            updateJob(jobId, {
+                progress,
+                message: `Receiving ${missionName} data packet (${Math.round(progress)}%)...`,
+                status: 'syncing'
+            });
 
             if (attempts > maxAttempts) {
                 clearInterval(pollInterval);
-                setInstalling(null);
-                setInstallProgress(0);
-                setStatusMessage(`DOWNLINK INTERRUPTED: Check mission agent status.`);
-            } else {
-                setStatusMessage(`SYNCING TELEMETRY: Receiving ${missionName} data packet (${Math.round(progress)}%)...`);
+                updateJob(jobId, { status: 'failed', message: 'DOWNLINK INTERRUPTED' });
             }
         }, 3000);
 
-        // Store interval ID to clean up if needed
-        (window as any)._installInterval = pollInterval;
+        (window as any)[`_installInterval_${jobId}`] = pollInterval;
     };
 
     // Use effect to watch for completion - avoids stale closure issue
     useEffect(() => {
-        if (!installing) return;
+        activeJobs.forEach(job => {
+            if (job.status === 'completed' || job.status === 'failed') return;
 
-        const isNowInstalled = currentSessions.some(c =>
-            installing.includes(c.name) ||
-            c.id.includes(installing.toLowerCase().replace(/\s+/g, '-')) ||
-            c.id.includes(installing.toLowerCase().split(' ')[0])
-        );
+            const isNowInstalled = currentSessions.some(c => {
+                // job.id is formatted as `init-${year}-${name}`
+                const circuitIdFromJob = job.id.replace('init-', '');
+                return c.id.toLowerCase() === circuitIdFromJob.toLowerCase();
+            });
 
-        if (isNowInstalled) {
-            const interval = (window as any)._installInterval;
-            if (interval) clearInterval(interval);
+            if (isNowInstalled) {
+                const interval = (window as any)[`_installInterval_${job.id}`];
+                if (interval) clearInterval(interval);
 
-            setInstallProgress(100);
-            setStatusMessage(`MISSION SECURED: Data stream active.`);
-
-            setTimeout(() => {
-                setInstalling(null);
-                setInstallProgress(0);
-                setTimeout(() => setStatusMessage(null), 5000);
-            }, 800);
-        }
-    }, [currentSessions, installing]);
+                updateJob(job.id, {
+                    progress: 100,
+                    status: 'completed',
+                    message: 'MISSION SECURED: Data stream active.'
+                });
+            }
+        });
+    }, [currentSessions, activeJobs, updateJob]);
 
     const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
@@ -154,8 +168,9 @@ export const MissionManager: React.FC<MissionManagerProps> = ({ onClose, current
     return (
         <div className="mission-manager-view">
             <AnimatePresence>
-                {statusMessage && (
+                {activeJobs.map(job => (
                     <motion.div
+                        key={job.id}
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
@@ -164,27 +179,27 @@ export const MissionManager: React.FC<MissionManagerProps> = ({ onClose, current
                         <div className="alert-content">
                             <span className="pulse-dot" />
                             <div className="text-progress">
-                                <span className="message">{statusMessage}</span>
-                                {installing && (
+                                <span className="message">{job.message || statusMessage}</span>
+                                {job.status !== 'completed' && job.status !== 'failed' && (
                                     <>
                                         <div className="progress-container">
                                             <motion.div
                                                 className="progress-fill"
                                                 initial={{ width: 0 }}
-                                                animate={{ width: `${installProgress}%` }}
+                                                animate={{ width: `${job.progress}%` }}
                                                 transition={{ type: 'spring', bounce: 0, duration: 0.5 }}
                                             />
                                         </div>
                                         <div className="command-hud">
                                             <span className="terminal-prefix">&gt;_</span>
-                                            <span className="command-text">AGENT_EXEC: mission_control.py add "{installing}"</span>
+                                            <span className="command-text">AGENT_EXEC: mission_control.py add "{job.name}"</span>
                                         </div>
                                     </>
                                 )}
                             </div>
                         </div>
                     </motion.div>
-                )}
+                ))}
             </AnimatePresence>
 
             <AnimatePresence>
@@ -244,6 +259,8 @@ export const MissionManager: React.FC<MissionManagerProps> = ({ onClose, current
                     <div className="catalog-list">
                         {availableRaces.map((race, i) => {
                             const isInstalled = currentSessions.some(c => c.name.includes(race.name));
+                            const activeJob = activeJobs.find(j => j.name.includes(race.name));
+
                             return (
                                 <div key={i} className={`catalog-item ${isInstalled ? 'installed' : ''}`}>
                                     <div className="item-info">
@@ -254,11 +271,11 @@ export const MissionManager: React.FC<MissionManagerProps> = ({ onClose, current
                                         </div>
                                     </div>
                                     <button
-                                        className={`add-btn ${installing === race.official_name ? 'loading' : ''}`}
-                                        disabled={!!isInstalled || !!installing}
+                                        className={`add-btn ${activeJob ? 'loading' : ''}`}
+                                        disabled={!!isInstalled || !!activeJob}
                                         onClick={() => handleAddRace(selectedYear, race)}
                                     >
-                                        {isInstalled ? 'INSTALLED' : (installing === race.official_name ? 'LINKING...' : 'INITIALIZE')}
+                                        {isInstalled ? 'INSTALLED' : (activeJob ? 'LINKING...' : 'INITIALIZE')}
                                     </button>
                                 </div>
                             );
@@ -270,7 +287,21 @@ export const MissionManager: React.FC<MissionManagerProps> = ({ onClose, current
                 <div className="admin-panel storage-panel">
                     <header className="panel-header">
                         <div className="title-stack">
-                            <h3>MISSION STORAGE</h3>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <h3>MISSION STORAGE</h3>
+                                <div className={`status-badge ${bridgeStatus}`} style={{
+                                    fontSize: '0.6rem',
+                                    padding: '2px 8px',
+                                    borderRadius: '10px',
+                                    background: bridgeStatus === 'online' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                                    color: bridgeStatus === 'online' ? '#10b981' : '#ef4444',
+                                    border: `1px solid ${bridgeStatus === 'online' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+                                    fontWeight: 800,
+                                    letterSpacing: '0.05em'
+                                }}>
+                                    BRIDGE {bridgeStatus.toUpperCase()}
+                                </div>
+                            </div>
                             <span className="file-count">{currentSessions.length} ACTIVE PROFILES</span>
                         </div>
                         <button className="exit-admin-btn" onClick={onClose}>

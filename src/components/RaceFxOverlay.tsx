@@ -52,20 +52,37 @@ export const RaceFxOverlay: React.FC = () => {
         }
     }, [currentTime, raceDuration, stage]);
 
-    // REVVING SIMULATION
+    // REVVING SIMULATION (Mechanical Throttle Blips)
     useEffect(() => {
         if (stage !== 'START_DETAILS') return;
 
-        let direction = 1;
+        let targetRpm = 11000 + Math.random() * 2000;
+        let isIncreasing = true;
+
         const interval = setInterval(() => {
             setRevRpm(prev => {
-                if (prev >= 12500) direction = -1;
-                if (prev <= 10000) direction = 1;
-                // Random jump for "blip" effect
-                const noise = Math.random() * 500;
-                return prev + (direction * 400) + noise;
+                const noise = (Math.random() - 0.5) * 400; // Mechanical vibration
+                let next;
+
+                if (isIncreasing) {
+                    // Sharp rise (hitting the gas)
+                    next = prev + 800;
+                    if (prev >= targetRpm) {
+                        isIncreasing = false;
+                        targetRpm = 6000 + Math.random() * 2000; // Fall to random neutral point
+                    }
+                } else {
+                    // Slower decay (engine braking/idle)
+                    next = prev - 400;
+                    if (prev <= targetRpm) {
+                        isIncreasing = true;
+                        targetRpm = 11000 + Math.random() * 3000; // Pick next rev target
+                    }
+                }
+
+                return Math.max(4000, Math.min(15000, next + noise));
             });
-        }, 50);
+        }, 30); // Faster tick for smoother jitter
 
         return () => clearInterval(interval);
     }, [stage]);
@@ -81,10 +98,9 @@ export const RaceFxOverlay: React.FC = () => {
         }, 3000);
     };
 
-    // Calculate Winner for End Screen
-    const winnerName = raceData?.drivers[0] ?
-        raceData.drivers[0].driver_name.toUpperCase() : "WINNER";
-    const winnerTeam = raceData?.drivers[0]?.team || "F1 TEAM";
+
+    // Calculate Top 3 for Podium
+    const top3Drivers = raceData?.drivers.slice(0, 3) || [];
 
     return (
         <AnimatePresence>
@@ -142,7 +158,7 @@ export const RaceFxOverlay: React.FC = () => {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.5, repeat: Infinity, repeatType: "reverse", duration: 0.8 }}
-                        style={{ marginTop: '2rem', color: '#facc15', fontSize: '1.2rem', fontWeight: 700, letterSpacing: '0.2em' }}
+                        style={{ marginTop: '8rem', color: '#facc15', fontSize: '1.2rem', fontWeight: 700, letterSpacing: '0.2em' }}
                     >
                         SYSTEMS CHECK...
                     </motion.div>
@@ -269,47 +285,125 @@ export const RaceFxOverlay: React.FC = () => {
                 </div>
             )}
 
-            {/* --- END: WINNER CELEBRATION --- */}
+            {/* --- END: PODIUM NOTIFICATIONS --- */}
             {stage === 'END_CELEBRATION' && (
-                <motion.div
-                    className="race-fx-overlay"
-                    key="end-celebration"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
+                <div
+                    className="status-notification-stack"
                     style={{
+                        pointerEvents: 'none',
                         position: 'fixed',
-                        top: 0, left: 0, right: 0, bottom: 0,
-                        zIndex: 200, // Higher than everything
-                        background: 'rgba(0,0,0,0.8)',
-                        backdropFilter: 'blur(10px)',
+                        top: '7.5rem',
+                        left: '1.5rem',
+                        zIndex: 2000,
                         display: 'flex',
                         flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center'
+                        gap: '0.75rem'
                     }}
                 >
-                    <motion.div
-                        initial={{ y: 50, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.2 }}
-                    >
-                        <h1 style={{ fontSize: '6rem', margin: 0, color: 'white', fontFamily: 'Outfit', fontStyle: 'italic', lineHeight: 0.8 }}>
-                            FINISH
-                        </h1>
-                    </motion.div>
+                    {top3Drivers.map((driver, index) => {
+                        const position = index + 1;
+                        const medals = ['🥇', '🥈', '🥉'];
+                        const colors = ['#ffd700', '#c0c0c0', '#cd7f32']; // Gold, Silver, Bronze
 
-                    <motion.div
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.5, type: 'spring' }}
-                        style={{ marginTop: '2rem', textAlign: 'center' }}
-                    >
-                        <div style={{ fontSize: '1.5rem', color: '#facc15', letterSpacing: '0.2em', fontWeight: 700 }}>WINNER</div>
-                        <div style={{ fontSize: '4rem', fontWeight: 900, color: 'white' }}>{winnerName}</div>
-                        <div style={{ fontSize: '2rem', fontWeight: 600, color: '#94a3b8' }}>{winnerTeam}</div>
-                    </motion.div>
-                </motion.div>
+                        return (
+                            <motion.div
+                                key={driver.driver_abbr}
+                                layout
+                                initial={{ x: -20, opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
+                                animate={{ x: 0, opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                                exit={{
+                                    x: -10,
+                                    opacity: 0,
+                                    scale: 0.98,
+                                    filter: 'blur(2px)',
+                                    transition: { duration: 0.2, ease: "easeOut" }
+                                }}
+                                transition={{ delay: index * 0.4 }}
+                                className="status-notification-item status"
+                                style={{
+                                    borderLeftColor: colors[index],
+                                    minWidth: '350px'
+                                }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.5rem 0' }}>
+                                    {/* Medal */}
+                                    <div style={{
+                                        fontSize: '2.5rem',
+                                        lineHeight: 1,
+                                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
+                                    }}>
+                                        {medals[index]}
+                                    </div>
+
+                                    {/* Driver Info */}
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{
+                                            fontSize: '0.75rem',
+                                            color: '#94a3b8',
+                                            letterSpacing: '0.05em',
+                                            marginBottom: '0.25rem'
+                                        }}>
+                                            P{position}
+                                        </div>
+                                        <div style={{
+                                            fontSize: '1.25rem',
+                                            fontWeight: 700,
+                                            fontFamily: 'Outfit',
+                                            color: 'white',
+                                            lineHeight: 1.2
+                                        }}>
+                                            {driver.driver_name}
+                                        </div>
+                                        <div style={{
+                                            fontSize: '0.875rem',
+                                            color: driver.team_color || '#64748b',
+                                            fontWeight: 600,
+                                            marginTop: '0.125rem'
+                                        }}>
+                                            {driver.team}
+                                        </div>
+                                    </div>
+
+                                    {/* Driver Profile Image */}
+                                    <img
+                                        src={`/drivers/${driver.driver_abbr.toLowerCase()}.png`}
+                                        alt={driver.driver_name}
+                                        style={{
+                                            width: '5rem',
+                                            height: '5rem',
+                                            borderRadius: '0.5rem',
+                                            objectFit: 'cover',
+                                            objectPosition: 'top'
+                                        }}
+                                        onError={(e) => {
+                                            // Fallback to position badge if image not found
+                                            e.currentTarget.style.display = 'none';
+                                            const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                                            if (fallback) fallback.style.display = 'flex';
+                                        }}
+                                    />
+                                    {/* Fallback Position Badge (hidden by default) */}
+                                    <div style={{
+                                        backgroundColor: colors[index],
+                                        color: '#000',
+                                        fontSize: '1.5rem',
+                                        fontWeight: 900,
+                                        fontFamily: 'Outfit',
+                                        width: '3rem',
+                                        height: '3rem',
+                                        borderRadius: '0.5rem',
+                                        display: 'none',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        boxShadow: '0 0 20px rgba(0,0,0,0.3)'
+                                    }}>
+                                        {position}
+                                    </div>
+                                </div>
+                            </motion.div>
+                        );
+                    })}
+                </div>
             )}
         </AnimatePresence>
     );

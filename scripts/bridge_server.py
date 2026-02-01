@@ -20,6 +20,13 @@ class MissionRequest(BaseModel):
     race_name: str
     laps: int = 5
 
+@app.get("/status")
+async def get_status():
+    """
+    Check if the bridge server is responsive.
+    """
+    return {"status": "online", "service": "f1-telemetry-bridge"}
+
 @app.post("/add-mission")
 async def add_mission(request: MissionRequest, background_tasks: BackgroundTasks):
     """

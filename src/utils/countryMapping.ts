@@ -96,6 +96,6 @@ export const getFlagUrl = (location: string): string | null => {
 
     if (!code) return null;
 
-    // Using FlagCDN (w40 for 40px width)
-    return `https://flagcdn.com/w40/${code}.png`;
+    // Using local SVG assets
+    return `/flags/${code}.svg`;
 };
