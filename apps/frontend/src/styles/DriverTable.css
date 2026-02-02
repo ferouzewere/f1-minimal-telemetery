@@ -1,0 +1,392 @@
+.driver-table-container {
+    background: transparent;
+    backdrop-filter: none;
+    border: none;
+    border-radius: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.table-scroll-area {
+    max-height: 330px;
+    /* Perfect fit for 5 drivers + header */
+    overflow-y: auto;
+    overflow-x: auto;
+    scrollbar-width: none;
+    /* Hide scrollbar for cleaner look */
+    -ms-overflow-style: none;
+    mask-image: linear-gradient(to bottom,
+            black 0%,
+            black 85%,
+            transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom,
+            black 0%,
+            black 85%,
+            transparent 100%);
+}
+
+.table-scroll-area::-webkit-scrollbar {
+    display: none;
+}
+
+/* --- CSS GRID LAYOUT --- */
+:root {
+    --dt-grid-cols: 40px minmax(115px, 2fr) minmax(50px, 0.6fr) minmax(90px, 1.2fr) minmax(90px, 1.2fr) minmax(120px, 1.8fr);
+}
+
+.driver-table {
+    width: 100%;
+    /* No more table-layout */
+    font-family: 'Titillium Web', sans-serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.02em;
+}
+
+/* Header Row */
+.table-header {
+    display: grid;
+    grid-template-columns: var(--dt-grid-cols);
+    align-items: center;
+    padding: 0;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.table-header .th-cell {
+    text-align: left;
+    padding: 0.75rem 0.2rem 0.5rem;
+    color: var(--text-secondary);
+    font-weight: 700;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* Body Rows */
+.driver-row {
+    display: grid !important;
+    /* Override motion styles if conflict */
+    grid-template-columns: var(--dt-grid-cols);
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.driver-row .td-cell {
+    padding: 0.5rem 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    /* Vertical centring handled by grid align-items */
+}
+
+/* Alignments */
+.th-gap,
+.td-gap,
+.th-last,
+.td-last {
+    text-align: right !important;
+}
+
+.th-pos,
+.td-pos {
+    text-align: center !important;
+}
+
+/* Override old fixed widths */
+.driver-table .th-pos,
+.driver-table .td-pos,
+.driver-table .th-driver,
+.driver-table .td-driver,
+.driver-table .th-tyre,
+.driver-table .td-tyre,
+.driver-table .th-gap,
+.driver-table .td-gap,
+.driver-table .th-last,
+.driver-table .td-last,
+.driver-table .th-sect,
+.driver-table .td-sect {
+    width: auto !important;
+    /* Let Grid handle width */
+}
+
+/* --- COLUMN WIDTHS --- */
+/* These are now handled by --dt-grid-cols and width: auto !important; */
+
+
+.driver-table .th-pos,
+.driver-table .td-pos {
+    text-align: center;
+    font-weight: 700;
+    font-style: italic;
+    /* Dynamic positioning look */
+    color: var(--accent);
+}
+
+.driver-cell {
+    display: flex;
+    flex-direction: column;
+    line-height: 1;
+    overflow: hidden;
+    /* Ensure text doesn't overflow container */
+}
+
+.driver-cell .abbr {
+    font-weight: 900;
+    font-size: 1.0rem;
+    color: #fff;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.driver-cell .team {
+    font-size: 0.55rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 2px;
+    white-space: nowrap;
+}
+
+/* Ensure numbers use the technical font nicely */
+.td-gap,
+.td-last {
+    font-family: 'Titillium Web', monospace;
+    /* Monospaced numbers */
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    font-variant-numeric: tabular-nums;
+    /* CRITICAL: prevent wobbling */
+}
+
+.table-header-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    /* Align left specifically if desired, or space-between */
+    gap: 1rem;
+    /* Space between GRID MONITOR and LIVE */
+    padding: 0.75rem 1rem;
+    background: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-weight: 900;
+    font-size: 0.9rem;
+    letter-spacing: 0.15em;
+    color: #fff;
+    text-transform: uppercase;
+}
+
+.live-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--accent);
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.ping {
+    width: 6px;
+    height: 6px;
+    background-color: var(--error);
+    border-radius: 50%;
+    animation: pulse-red 1.5s infinite;
+}
+
+@keyframes pulse-red {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+/* --- TABLET RESPONSIVENESS (Intermediate) --- */
+@media (max-width: 1100px) {
+
+    /* Hide Sector column on tablets to save width */
+    .th-sect,
+    .td-sect {
+        display: none;
+    }
+
+    /* Adjust grid to remove the last column (Sector) */
+    :root {
+        --dt-grid-cols: 40px minmax(115px, 2fr) minmax(50px, 0.6fr) minmax(90px, 1.2fr) minmax(90px, 1.2fr);
+    }
+}
+
+/* --- MOBILE RESPONSIVENESS --- */
+@media (max-width: 640px) {
+    .driver-table {
+        font-size: 0.75rem;
+    }
+
+    .th-gear,
+    .td-gear,
+    .th-speed,
+    .td-speed,
+    .th-s1,
+    .td-s1,
+    .th-s2,
+    .td-s2,
+    .th-s3,
+    .td-s3 {
+        display: none;
+    }
+
+    /* Compact Team Name: Visible but tiny */
+    .driver-cell .team {
+        display: block !important;
+        font-size: 0.5rem !important;
+        line-height: 1;
+        margin-top: 1px;
+        white-space: nowrap;
+        opacity: 0.7;
+    }
+
+    /* Re-define grid for mobile (Pos | DRV | T | LAP | GAP | S) */
+    :root {
+        --dt-grid-cols: 20px minmax(40px, 0.7fr) 28px 1.1fr 1.1fr 0.8fr;
+    }
+
+    .driver-row .td-cell,
+    .table-header .th-cell {
+        padding: 0.4rem 0.1rem !important;
+        min-width: 0;
+        /* Critical for FitText sizing */
+    }
+
+    .driver-cell .abbr {
+        font-size: 0.85rem;
+        line-height: 1;
+    }
+
+    /* Compact Mobile Columns - Explicitly Visible */
+    .th-last,
+    .td-last,
+    .th-sect,
+    .td-sect {
+        display: block !important;
+        font-size: 0.65rem;
+        padding: 0.5rem 0.1rem;
+        text-align: center !important;
+    }
+
+    .driver-table .th-driver,
+    .driver-table .td-driver {
+        width: auto;
+    }
+
+    .table-scroll-area {
+        max-height: 165px;
+        /* ~3.5 rows to show scroll potential */
+        background: transparent !important;
+        mask-image: linear-gradient(to bottom,
+                black 0%,
+                black 70%,
+                rgba(0, 0, 0, 0.3) 100%);
+        -webkit-mask-image: linear-gradient(to bottom,
+                black 0%,
+                black 70%,
+                rgba(0, 0, 0, 0.3) 100%);
+    }
+}
+
+/* --- SECTOR PROGRESS & PERFORMANCE --- */
+.sector-progress-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.sector-label {
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: var(--text-secondary);
+    min-width: 20px;
+}
+
+.sector-track {
+    flex: 1;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.sector-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+/* Performance Colors */
+.perf-yellow {
+    color: #facc15;
+}
+
+.sector-fill.perf-yellow {
+    background-color: #facc15;
+}
+
+.perf-green {
+    color: #22c55e;
+}
+
+.sector-fill.perf-green {
+    background-color: #22c55e;
+}
+
+.perf-purple {
+    color: #a855f7;
+}
+
+.sector-fill.perf-purple {
+    background-color: #a855f7;
+    box-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+}
+
+/* Badges */
+.drs-badge,
+.pit-badge {
+    font-size: 0.5rem;
+    font-weight: 900;
+    padding: 0px 3px;
+    border-radius: 2px;
+    margin-left: 2px;
+    vertical-align: middle;
+}
+
+.drs-badge {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.pit-badge {
+    background: rgba(250, 204, 21, 0.2);
+    color: #facc15;
+    border: 1px solid rgba(250, 204, 21, 0.4);
+}
+
+/* Focus Mode Styling (Transitions handled by Framer Motion for smoothness) */
+
+/* Focused Row: Depth & Elevation (Opacity logic handled in React) */
+.driver-row.focused {
+    z-index: 50;
+    position: relative;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+}
+
+.driver-row.focused td {
+    color: #fff !important;
+}
