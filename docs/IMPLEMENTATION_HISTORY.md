@@ -1,10 +1,10 @@
-# 📜 Implementation History
+# Implementation History
 
-This document serves as a permanent log of the technical milestones achieved in the F1 Minimal Telemetry project, moving from the initial proposal to the current high-density analysis interface.
+This document serves as a log of the technical milestones achieved in the F1 Minimal Telemetry project, moving from the initial proposal to the current high-density analysis interface.
 
 ---
 
-## 🏁 Phase 1: Foundation (The POC)
+## Phase 1: Foundation (The POC)
 **Goal:** Establish the deterministic coordinate system and basic playback engine.
 
 - [x] **Project Scaffolding**: Setup Vite + React + TypeScript + Zustand.
@@ -15,7 +15,7 @@ This document serves as a permanent log of the technical milestones achieved in 
 
 ---
 
-## 🧠 Phase 2: Analysis & HUD (Current State)
+## Phase 2: Analysis & HUD (Current State)
 **Goal:** Transition from a simple replay to a professional-grade analysis tool.
 
 - [x] **Adaptive HUD Layers**: Implemented a responsive multi-layered HUD that separates "Ambient Map" from "Interactive Overlays."
@@ -35,7 +35,7 @@ This document serves as a permanent log of the technical milestones achieved in 
 
 ---
 
-## 🚀 Phase 3: Sophistication (In Progress)
+## Phase 3: Sophistication (In Progress)
 **Goal:** Deep analysis and multi-source synchronization.
 
 - [/] **Bridge Server Architecture**: Established `bridge_server.py` for dynamic data serving and live state polling.
@@ -45,7 +45,7 @@ This document serves as a permanent log of the technical milestones achieved in 
 
 ---
 
-## 🛠️ Technical Transitions
+## Technical Transitions
 | Original Concept | Final Implementation | Rationale |
 | :--- | :--- | :--- |
 | Vanilla JS / Preact | React 19 + TypeScript | Scalability and type safety for complex telemetry frames. |

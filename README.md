@@ -1,4 +1,4 @@
-# 🏎️ F1 Minimal Telemetry
+# F1 Minimal Telemetry
 
 ![F1 Minimal Telemetry Hero](./public/hero.png)
 
@@ -8,7 +8,7 @@ This project visualizes race constraints, driver freedom, and decision quality�
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 -   **Deterministic Replay:** Precise time control for historical race analysis with 2x, 5x, and 10x speeds.
 -   **Decision-Space Visualization:** High-fidelity telemetry (Speed, RPM, Gear, Throttle/Brake) to understand driver performance.
@@ -19,7 +19,7 @@ This project visualizes race constraints, driver freedom, and decision quality�
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ```mermaid
 graph TD
@@ -42,7 +42,7 @@ graph TD
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 -   **Frontend:** React 19, TypeScript, Zustand (State), Visx/D3 (Charts), Framer Motion (Animations)
 -   **Data Processing:** Python 3.x, FastF1, Pandas
@@ -51,7 +51,7 @@ graph TD
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Prerequisites
 - **Node.js**: v20+
@@ -82,7 +82,7 @@ python -m pytest apps/bridge/tests/ # Backend (Pytest)
 
 ---
 
-## 📖 Documentation
+## Documentation
 
 -   [Implementation History](docs/IMPLEMENTATION_HISTORY.md) - Chronological log of build steps and technical milestones.
 -   [Architecture](docs/ARCHITECTURE.md) - Design philosophy and state management.
@@ -92,12 +92,12 @@ python -m pytest apps/bridge/tests/ # Backend (Pytest)
 
 ---
 
-## 🤝 Philosophy
+## Philosophy
 
 We prioritize **clarity over spectacle**. The UI is built to be a strategist's notebook, ensuring that every pixel represents a meaningful data point without the noise of traditional broadcasts.
 
 ---
 
-## 🛡️ License
+## License
 
 MIT License. See [LICENSE](LICENSE) for details.

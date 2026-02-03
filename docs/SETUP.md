@@ -1,14 +1,14 @@
-# 🔧 Setup Guide
+# Setup Guide
 
 Follow these instructions to set up your development environment for F1 Minimal Telemetry.
 
-## 📦 System Requirements
+## System Requirements
 
 - **Operating System**: Windows, macOS, or Linux.
 - **Node.js**: v18.0.0 or higher.
 - **Python**: v3.10 or higher.
 
-## 🛠️ Step-by-Step Installation
+## Step-by-Step Installation
 
 ### 1. Clone the Repository
 ```bash
@@ -41,7 +41,7 @@ source venv/bin/activate
 pip install fastf1 pandas
 ```
 
-## 🚀 Running the Project
+## Running the Project
 
 The easiest way to run both the frontend and the data bridge is:
 
@@ -53,14 +53,14 @@ This uses `concurrently` to run:
 - `npm run dev` (Vite dev server at localhost:5173)
 - `npm run bridge` (Python bridge server)
 
-## 📁 Project Structure
+## Project Structure
 
 - `/src`: React components, hooks, and state.
 - `/scripts`: Python data pipeline scripts.
 - `/public/data`: Normalized JSON datasets (not git-ignored by default for portability).
 - `/docs`: Technical documentation.
 
-## ❓ Troubleshooting
+## Troubleshooting
 
 - **CORS Errors**: Ensure the `bridge_server.py` is running if the frontend is attempting to fetch data dynamically.
 - **Python Missing Dependencies**: Check if `fastf1` is installed correctly. Note that `fastf1` caches data in `~/.fastf1`, so its first run might be slow.

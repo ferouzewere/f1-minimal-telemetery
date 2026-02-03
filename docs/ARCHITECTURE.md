@@ -1,4 +1,4 @@
-# 🏗️ Architecture Overview
+# Architecture Overview
 
 This document describes the high-level architecture and design principles of the F1 Minimal Telemetry project.
 

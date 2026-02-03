@@ -1,15 +1,15 @@
-# ⚙️ Data Pipeline
+# Data Pipeline
 
 The project uses a Python-based pipeline to ingest, clean, and optimize F1 telemetry for web consumption.
 
-## 🏃 Workflow
+## Workflow
 
 1.  **Fetch**: Raw telemetry, lap data, and weather info are pulled from `FastF1`.
 2.  **Ingest & Normalize**: GPS coordinates are shifted and scaled; telemetry is synced with position data.
 3.  **Optimize**: Data is downsampled where possible to reduce JSON size while preserving strategic fidelity.
 4.  **Catalog**: The `sessions.json` file is updated with new session metadata and SVG path thumbnails.
 
-## 📜 Key Scripts
+## Key Scripts
 
 | Script | Purpose |
 | :--- | :--- |
@@ -19,7 +19,7 @@ The project uses a Python-based pipeline to ingest, clean, and optimize F1 telem
 | `bridge_server.py` | Local Python server for dynamic data serving or live status polling. |
 | `mission_control.py` | Management utility for cleaning and monitoring the session catalog. |
 
-## 🛠️ Ingesting a New Race
+## Ingesting a New Race
 
 To add a new race to the local library:
 
@@ -28,7 +28,7 @@ To add a new race to the local library:
 python scripts/add_historical_race_full.py --year 2024 --event "British Grand Prix"
 ```
 
-## 📊 Data Schema
+## Data Schema
 
 The normalized JSON output follows this structure:
 

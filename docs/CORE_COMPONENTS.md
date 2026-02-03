@@ -1,8 +1,8 @@
-# 🧩 Core Components
+# Core Components
 
 This document details the primary React components and state management logic used in the F1 Minimal Telemetry frontend.
 
-## 📍 TrackMap Component
+## TrackMap Component
 
 The `TrackMap` is the centerpiece of the application. It renders a normalized SVG path of the circuit.
 
@@ -10,14 +10,14 @@ The `TrackMap` is the centerpiece of the application. It renders a normalized SV
 - **Car Layers**: Drivers are rendered as circles (or "cells") that move along the path based on their `normalizedDistance`.
 - **Gap Visualization**: Specialized logic handles "gaps" in telemetry to ensure cars don't jump erratically across the map.
 
-## 📊 Telemetry Visualizers
+## Telemetry Visualizers
 
 We use **Visx** for all charts to ensure they remain thin wrappers around SVG primitives.
 
 - **Speedometer/G-Force**: High-frequency gauges that subscribe directly to the Zustand store.
 - **Lap Comparison**: Multi-line charts for comparing sector times and delta times.
 
-## 🧠 State Management: The Race Store
+## State Management: The Race Store
 
 The `useRaceStore` (Zustand) is the single source of truth for the race session.
 
@@ -33,7 +33,7 @@ To avoid re-rendering the entire app, components should subscribe to specific sl
 const currentTime = useRaceStore((state) => state.currentTime);
 ```
 
-## 🕹️ HUD Layers & Focus Modes
+## HUD Layers & Focus Modes
 
 The interface uses a multi-layered HUD system that adapts to user interaction:
 
@@ -43,13 +43,13 @@ The interface uses a multi-layered HUD system that adapts to user interaction:
     -   `SpeedDistanceGraph`: High-resolution telemetry for the specific driver.
     -   `Compass` & `VehicleStatus`: Real-time positional and health monitoring.
 
-## 📱 Mobile Adaptation
+## Mobile Adaptation
 
 On mobile screens, the HUD switches to a **Carousel System**:
 -   `CarouselHUD`: A touch-friendly container that allows swiping between telemetry graphs and the `IntegratedGauge`.
 -   `VerticalPlayback`: Playback controls pivot to a vertical side-pill to maximize screen real estate for the track map.
 
-## 🎨 Design Tokens
+## Design Tokens
 
 -   **Colors**: Custom HSL-based dark theme with high-contrast accents for telemetry (Throttle: Green, Brake: Red).
 -   **Typography**: Data-dense font selection (Rajdhani for headers, JetBrains Mono for telemetry numbers).
