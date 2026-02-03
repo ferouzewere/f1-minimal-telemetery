@@ -12,9 +12,15 @@ This project visualizes race constraints, driver freedom, and decision qualityâ€
 
 -   **Deterministic Replay:** Precise time control for historical race analysis with 2x, 5x, and 10x speeds.
 -   **Decision-Space Visualization:** High-fidelity telemetry (Speed, RPM, Gear, Throttle/Brake) to understand driver performance.
+
+![Focused Driver Tracking](./public/focused_tracking.png)
+
 -   **Tyre Strategy Tracking:** Visual stint timelines and tyre age monitoring.
 -   **Multi-API Architecture:** Aggregates high-resolution data from FastF1, Ergast, and official timing feeds.
 -   **Adaptive HUD:** Context-aware UI that switches between global race overview and focused driver tracking.
+
+![Global Race Overview](./public/global_overview.png)
+
 -   **Minimalist UI:** A calm, stable, non-scrollable interface built for analysis.
 
 ---
