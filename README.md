@@ -54,17 +54,30 @@ graph TD
 ## 🚀 Quick Start
 
 ### 1. Prerequisites
-- **Node.js**: v18+
+- **Node.js**: v20+
 - **Python**: v3.10+
-- **FastF1**: `pip install fastf1 pandas`
+- **FastF1**: `pip install fastf1 pandas fastapi uvicorn pydantic`
 
 ### 2. Setup & Run
 ```bash
-# Install dependencies
-npm install
+# Install dependencies (syncs workspaces)
+npm install --legacy-peer-deps
 
-# Start development server & telemetry bridge
+# Start development server (React Dashboard & Telemetry Bridge)
 npm start
+```
+
+### 3. Running Specific Apps
+```bash
+# Start only the Frontend
+npm run dev --workspace=@app/frontend
+
+# Start only the Bridge
+npm run bridge
+
+# Run tests
+npm test --workspace=@app/frontend  # Frontend (Vitest)
+python -m pytest apps/bridge/tests/ # Backend (Pytest)
 ```
 
 ---

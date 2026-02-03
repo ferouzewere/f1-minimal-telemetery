@@ -25,5 +25,5 @@ dist-ssr
 
 # Project specific
 cache/
-public/data/2024_*.json
+apps/frontend/public/data/20*.json
 stats.html

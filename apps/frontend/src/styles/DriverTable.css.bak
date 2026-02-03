@@ -1,0 +1,159 @@
+.driver-table-container {
+    background: transparent;
+    backdrop-filter: none;
+    border: none;
+    border-radius: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.table-scroll-area {
+    max-height: 330px;
+    /* Perfect fit for 5 drivers + header */
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+    /* Hide scrollbar for cleaner look */
+    -ms-overflow-style: none;
+    mask-image: linear-gradient(to bottom,
+            black 0%,
+            black 85%,
+            transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom,
+            black 0%,
+            black 85%,
+            transparent 100%);
+}
+
+.table-scroll-area::-webkit-scrollbar {
+    display: none;
+}
+
+.driver-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Titillium Web', sans-serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+}
+
+.driver-table thead th {
+    text-align: left;
+    padding: 0.75rem 0.5rem 0.5rem;
+    color: var(--text-secondary);
+    font-weight: 700;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    /* Wide tracking for headers */
+    text-transform: uppercase;
+    /* F1 Style */
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    position: sticky;
+    top: 0;
+    background: transparent;
+    z-index: 10;
+}
+
+.driver-table tbody td {
+    padding: 0.5rem 0.5rem;
+    vertical-align: middle;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.driver-table .th-driver,
+.driver-table .td-driver {
+    width: 150px;
+}
+
+.driver-table .th-pos,
+.driver-table .td-pos {
+    width: 40px;
+    text-align: center;
+    font-weight: 700;
+    font-style: italic;
+    /* Dynamic positioning look */
+    color: var(--accent);
+}
+
+.driver-cell {
+    display: flex;
+    flex-direction: column;
+    line-height: 1;
+}
+
+.driver-cell .abbr {
+    font-weight: 900;
+    font-size: 1.1rem;
+    color: #fff;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.driver-cell .team {
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 2px;
+}
+
+/* Ensure numbers use the technical font nicely */
+.td-gap,
+.td-last,
+.td-speed,
+.td-gear {
+    font-family: 'Titillium Web', monospace;
+    /* Monospaced numbers */
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+.table-header-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    /* Align left specifically if desired, or space-between */
+    gap: 1rem;
+    /* Space between GRID MONITOR and LIVE */
+    padding: 0.75rem 1rem;
+    background: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-weight: 900;
+    font-size: 0.9rem;
+    letter-spacing: 0.15em;
+    color: #fff;
+    text-transform: uppercase;
+}
+
+.live-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--accent);
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.ping {
+    width: 6px;
+    height: 6px;
+    background-color: var(--error);
+    border-radius: 50%;
+    animation: pulse-red 1.5s infinite;
+}
+
+@keyframes pulse-red {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}

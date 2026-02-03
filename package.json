@@ -3,13 +3,16 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "bridge": "python scripts/bridge_server.py",
+    "dev": "npm run dev --workspace=@app/frontend",
+    "bridge": "python apps/bridge/main.py",
     "start": "concurrently \"npm run dev\" \"npm run bridge\"",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "build": "npm run build --workspace=@app/frontend",
+    "lint": "npm run lint --workspace=@app/frontend",
+    "preview": "npm run preview --workspace=@app/frontend"
   },
   "dependencies": {
     "@visx/visx": "^3.12.0",
